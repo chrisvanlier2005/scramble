@@ -3,12 +3,16 @@
 namespace Dedoc\Scramble\Support\OperationExtensions\ParameterExtractor;
 
 use Dedoc\Scramble\Infer;
+use Dedoc\Scramble\Infer\Analyzer\MethodAnalyzer;
+use Dedoc\Scramble\Infer\Scope\GlobalScope;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\OperationExtensions\RequestBodyExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\FormRequestRuleExtractor;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\GeneratesParametersFromRules;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\ParametersExtractionResult;
 use Dedoc\Scramble\Support\RouteInfo;
 use Dedoc\Scramble\Support\SchemaClassDocReflector;
+use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Arr;
@@ -88,14 +92,14 @@ class FormRequestParametersExtractor implements ParameterExtractor
             : $phpDocReflector->getSchemaName($requestClassName);
 
         return new ParametersExtractionResult(
-            parameters: $this->makeParameters(
+            parameters: $this->makeParametersFromStaticRules(
                 node: (new NodeFinder)->find(
                     Arr::wrap($classReflector->getMethod('rules')->getAstNode()->stmts),
                     fn (Node $node) => $node instanceof Node\Expr\ArrayItem
                         && $node->key instanceof Node\Scalar\String_
                         && $node->getAttribute('parsedPhpDoc'),
                 ),
-                rules: $this->rules($requestClassName, $routeInfo->route),
+                rules: $this->rules($requestClassName, $routeInfo),
                 typeTransformer: $this->openApiTransformer,
                 in: in_array(mb_strtolower($routeInfo->route->methods()[0]), RequestBodyExtension::HTTP_METHODS_WITHOUT_REQUEST_BODY)
                     ? 'query'
@@ -106,21 +110,19 @@ class FormRequestParametersExtractor implements ParameterExtractor
         );
     }
 
-    protected function rules(string $requestClassName, Route $route)
+    protected function rules(string $requestClassName, RouteInfo $routeInfo): KeyedArrayType
     {
-        /** @var Request $request */
-        $request = (new $requestClassName);
+        $infer = new Infer($index = new Infer\Scope\Index());
+        $inferred = $infer->analyzeClass($requestClassName);
 
-        $rules = [];
+        $scope = new GlobalScope();
+        $scope->index = $index;
 
-        if (method_exists($request, 'setMethod')) {
-            $request->setMethod($route->methods()[0]);
-        }
+        $methodDefinition = $inferred->getMethodDefinition(
+            'rules',
+            $scope,
+        );
 
-        if (method_exists($request, 'rules')) {
-            $rules = $request->rules();
-        }
-
-        return $rules;
+        return $methodDefinition->type->returnType;
     }
 }
