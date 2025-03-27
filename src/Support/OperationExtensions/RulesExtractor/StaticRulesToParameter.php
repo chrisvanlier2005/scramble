@@ -10,7 +10,9 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileRule;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InRule;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\LaravelRule;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\MoneyRule;
 use Dedoc\Scramble\Support\Type\ArrayItemType_;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
@@ -51,9 +53,9 @@ class StaticRulesToParameter
             })
             ->sortByDesc($this->rulesSorter());
 
-        // TODO: refactor
         $extensions = [
             InRule::class,
+            FileRule::class,
         ];
 
         /** @var OpenApiType $type */

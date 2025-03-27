@@ -9,17 +9,20 @@ use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
 use Dedoc\Scramble\Support\Type\Type;
+use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\Rules\In;
 
 class FileRule extends TypeBasedRule
 {
     public function shouldHandle(Type $rule): bool
     {
-        return false;
+        return $rule instanceof Generic
+            && $rule->isInstanceOf(File::class)
+            && count($rule->templateTypes) === 0;
     }
 
     public function handle(OpenApiType $previousType, Type $rule): OpenApiType
     {
-        return $previousType;
+        return (new RulesMapper($this->openApiTransformer))->file($previousType);
     }
 }

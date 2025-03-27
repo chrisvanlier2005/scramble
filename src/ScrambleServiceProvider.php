@@ -25,6 +25,7 @@ use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\IndexBuilders\IndexBuilder;
 use Dedoc\Scramble\Support\InferExtensions\AbortHelpersExceptionInfer;
 use Dedoc\Scramble\Support\InferExtensions\ArrayMergeReturnTypeExtension;
+use Dedoc\Scramble\Support\InferExtensions\FileRuleCallsInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceCallsTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceCreationInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceExtension;
@@ -108,6 +109,7 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     JsonResponseMethodReturnTypeExtension::class,
                     ModelExtension::class,
                     RuleExtension::class,
+                    FileRuleCallsInfer::class,
                 ], $inferExtensionsClasses);
 
                 return array_merge(
