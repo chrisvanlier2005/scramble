@@ -10,8 +10,10 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InRule;
+use Dedoc\Scramble\Support\Type\ArrayItemType_;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
-use Illuminate\Support\Arr;
+use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
 use Illuminate\Support\Str;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
 
@@ -36,21 +38,39 @@ class StaticRulesToParameter
             return null;
         }
 
-        dd($this->rules);
+        /** @var \Illuminate\Support\Collection<int, mixed> $rules */
+        $rules = collect($this->rules->items)
+            ->map(fn (ArrayItemType_ $rules) => $rules->value)
+            ->map(function (mixed $rule) {
+                if ($rule instanceof LiteralStringType) {
+                    return $rule->value;
+                }
 
-        $rules = collect($this->rules)
-            ->map(fn ($v) => method_exists($v, '__toString') ? $v->__toString() : $v)
+                return $rule;
+            })
             ->sortByDesc($this->rulesSorter());
 
+        // TODO: refactor
+        $extensions = [
+            InRule::class,
+        ];
+
         /** @var OpenApiType $type */
-        $type = $rules->reduce(function (OpenApiType $type, $rule) {
+        $type = $rules->reduce(function (OpenApiType $type, $rule) use ($extensions) {
             if (is_string($rule)) {
                 return $this->getTypeFromStringRule($type, $rule);
             }
 
-            return method_exists($rule, 'docs')
-                ? $rule->docs($type, $this->openApiTransformer)
-                : $this->getTypeFromObjectRule($type, $rule);
+            // If it's handled by an extension (latest in the array) call the handle method.
+//            foreach ($extensions as $extension) {
+//                $extension = new $extension($this->openApiTransformer);
+//
+//                if ($extension->shouldHandle($rule)) {
+//                    return $extension->handle($type, $rule);
+//                }
+//            }
+
+            return $this->getTypeFromObjectRule($type, $rule);
         }, new UnknownType);
 
         $description = $type->description;
@@ -111,7 +131,7 @@ class StaticRulesToParameter
     {
         return function ($v) {
             if (! is_string($v)) {
-                return -2;
+                return -1; // We want objects to be at the end due to type extension modifications.
             }
 
             $index = array_search($v, static::RULES_PRIORITY);

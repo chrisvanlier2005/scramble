@@ -37,8 +37,9 @@ class StaticRulesToParameters
                 return (new StaticRulesToParameter(
                     name: $rules->key,
                     rules: $rules->value,
-                    docNode: $rules->attributes()[0] ?? null,
+                    docNode: $rules->attributes()['docNode'] ?? null,
                     openApiTransformer: $this->openApiTransformer,
+                    in: $this->in,
                 ))->generate();
             })
             ->filter()
