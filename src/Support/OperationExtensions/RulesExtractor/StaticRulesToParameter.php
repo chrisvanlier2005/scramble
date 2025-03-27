@@ -11,6 +11,7 @@ use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InRule;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\MoneyRule;
 use Dedoc\Scramble\Support\Type\ArrayItemType_;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
@@ -62,13 +63,13 @@ class StaticRulesToParameter
             }
 
             // If it's handled by an extension (latest in the array) call the handle method.
-//            foreach ($extensions as $extension) {
-//                $extension = new $extension($this->openApiTransformer);
-//
-//                if ($extension->shouldHandle($rule)) {
-//                    return $extension->handle($type, $rule);
-//                }
-//            }
+            foreach ($extensions as $extension) {
+                $extension = new $extension($this->openApiTransformer);
+
+                if ($extension->shouldHandle($rule)) {
+                    return $extension->handle($type, $rule);
+                }
+            }
 
             return $this->getTypeFromObjectRule($type, $rule);
         }, new UnknownType);
