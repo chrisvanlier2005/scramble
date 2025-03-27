@@ -28,7 +28,7 @@ class StaticRulesToParameter
 
     public function __construct(
         private string $name,
-        private KeyedArrayType $rules,
+        private KeyedArrayType|LiteralStringType $rules,
         private ?PhpDocNode $docNode,
         private TypeTransformer $openApiTransformer,
         private string $in = 'query',
@@ -41,6 +41,16 @@ class StaticRulesToParameter
             return null;
         }
 
+        if ($this->rules instanceof LiteralStringType) {
+            $this->rules = new KeyedArrayType(
+                items: [
+                    new ArrayItemType_(
+                        key: 'rules',
+                        value: $this->rules,
+                    ),
+                ],
+            );
+        }
         /** @var \Illuminate\Support\Collection<int, mixed> $rules */
         $rules = collect($this->rules->items)
             ->map(fn (ArrayItemType_ $rules) => $rules->value)
