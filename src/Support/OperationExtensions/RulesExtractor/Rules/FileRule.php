@@ -15,35 +15,11 @@ class FileRule extends TypeBasedRule
 {
     public function shouldHandle(Type $rule): bool
     {
-        return $rule instanceof Generic
-            && count($rule->templateTypes) === 1
-            && $rule->isInstanceOf(In::class);
+        return false;
     }
 
     public function handle(OpenApiType $previousType, Type $rule): OpenApiType
     {
-        if (
-            !$rule instanceof Generic
-            || !$rule->isInstanceOf(In::class)
-            || count($rule->templateTypes) !== 1
-        ) {
-            return $previousType;
-        }
-
-        $typeMapper = new RulesMapper(
-            $this->openApiTransformer,
-        );
-
-        return $typeMapper->in($previousType, $this->getNormalizedValues($rule->templateTypes[0]));
-    }
-
-    private function getNormalizedValues(KeyedArrayType $rule)
-    {
-        return collect($rule->items)
-            ->map(fn (ArrayItemType_ $itemType) => $itemType->value)
-            ->filter(fn (Type $t) => $t instanceof LiteralStringType)
-            ->map(fn (LiteralStringType $t) => $t->value)
-            ->values()
-            ->all();
+        return $previousType;
     }
 }
