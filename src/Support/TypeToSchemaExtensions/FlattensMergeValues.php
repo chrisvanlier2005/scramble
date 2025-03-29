@@ -32,17 +32,39 @@ trait FlattensMergeValues
                     return [$item];
                 }
 
+                $isUnionWithMissingValue = fn ($type) => $type instanceof Union
+                    && (bool) array_filter($type->types, fn (Type $t) => $t->isInstanceOf(MissingValue::class));
+
                 if (
                     $item->value instanceof Union
                     && (new TypeWalker)->first($item->value, fn (Type $t) => $t->isInstanceOf(Carbon::class) || $t->isInstanceOf(CarbonImmutable::class))
                 ) {
-                    (new TypeWalker)->replace($item->value, function (Type $t) {
+                    $newType = (new TypeWalker)->replace($item->value, function (Type $t) {
                         return ($t->isInstanceOf(Carbon::class) || $t->isInstanceOf(CarbonImmutable::class))
                             ? tap(new StringType, fn ($t) => $t->setAttribute('format', 'date-time'))
                             : null;
                     });
 
-                    return [$item];
+                    // If the type is a union of Carbon and other types, we need to return it as is.
+                    $newType = (new TypeWalker)->replace($item->value, function (Type $t) use ($isUnionWithMissingValue) {
+                        if (! $isUnionWithMissingValue($t)) {
+                            return null;
+                        }
+
+                        return Union::wrap(array_values(
+                            array_filter($t->types, fn (Type $t) => ! $t->isInstanceOf(MissingValue::class))
+                        ));
+                    });
+
+                    if ($newType instanceof VoidType) {
+                        return [];
+                    }
+
+                    $item->isOptional = true;
+
+                    $item->value = $newType;
+
+                    return $this->flattenMergeValues([$item]);
                 }
 
                 if ($item->value->isInstanceOf(JsonResource::class)) {
@@ -61,9 +83,6 @@ trait FlattensMergeValues
                         return [$item];
                     }
                 }
-
-                $isUnionWithMissingValue = fn ($type) => $type instanceof Union
-                    && (bool) array_filter($type->types, fn (Type $t) => $t->isInstanceOf(MissingValue::class));
 
                 if (
                     $item->value instanceof Union
