@@ -2,6 +2,8 @@
 
 namespace Dedoc\Scramble\Infer\Extensions;
 
+use Illuminate\Support\Collection;
+
 class ExtensionsBroker
 {
     public function __construct(
@@ -10,10 +12,13 @@ class ExtensionsBroker
 
     public function getPropertyType($event)
     {
-        $extensions = array_filter($this->extensions, function ($e) use ($event) {
-            return $e instanceof PropertyTypeExtension
-                && $e->shouldHandle($event->getInstance());
-        });
+        $extensions = Collection::make($this->extensions)
+            ->filter(function  (InferExtension $e) use ($event) {
+                return $e instanceof PropertyTypeExtension
+                    && $e->shouldHandle($event->getInstance());
+            })
+            ->reverse(); // Reverse, so custom extensions are handled first.
+
 
         foreach ($extensions as $extension) {
             if ($propertyType = $extension->getPropertyType($event)) {
