@@ -2,6 +2,7 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\ParameterExtractor;
 
+use Dedoc\Scramble\Attributes\SchemaName;
 use Dedoc\Scramble\Infer;
 use Dedoc\Scramble\Infer\Scope\GlobalScope;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
@@ -86,6 +87,13 @@ class FormRequestParametersExtractor implements ParameterExtractor
         $schemaName = ($phpDocReflector->getTagValue('@ignoreSchema')->value ?? null) !== null
             ? null
             : $phpDocReflector->getSchemaName($requestClassName);
+
+        $schemaNameAttribute = ($classReflector->getReflection()
+            ->getAttributes(SchemaName::class)[0] ?? null)?->newInstance();
+
+        $schemaName = $schemaNameAttribute
+            ? $schemaNameAttribute->name
+            : $schemaName;
 
         return new ParametersExtractionResult(
             parameters: $this->makeParametersFromStaticRules(
