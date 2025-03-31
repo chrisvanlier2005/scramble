@@ -6,12 +6,11 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Type\Type;
 
-abstract class ValidationRuleExtension 
+abstract class ValidationRuleExtension
 {
     public function __construct(
         public TypeTransformer $openApiTransformer,
-    ) {
-    }
+    ) {}
 
     abstract public function shouldHandle(Type $rule): bool;
 

@@ -23,8 +23,8 @@ class InValidationRuleExtension extends ValidationRuleExtension
     public function handle(OpenApiType $previousType, Type $rule): OpenApiType
     {
         if (
-            !$rule instanceof Generic
-            || !$rule->isInstanceOf(In::class)
+            ! $rule instanceof Generic
+            || ! $rule->isInstanceOf(In::class)
             || count($rule->templateTypes) !== 1
         ) {
             return $previousType;

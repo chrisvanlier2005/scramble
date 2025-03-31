@@ -11,10 +11,6 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileValidationRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InValidationRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\LaravelRule;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\MoneyRule;
 use Dedoc\Scramble\Support\Type\ArrayItemType_;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
@@ -35,8 +31,7 @@ class StaticRulesToParameter
         private TypeTransformer $openApiTransformer,
         private ExtensionsBroker $extensionsBroker,
         private string $in = 'query',
-    ) {
-    }
+    ) {}
 
     public function generate(): ?Parameter
     {

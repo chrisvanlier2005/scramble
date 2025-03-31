@@ -39,6 +39,7 @@ use Dedoc\Scramble\Support\InferExtensions\ResponseMethodReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\RuleExtension;
 use Dedoc\Scramble\Support\InferExtensions\TypeTraceInfer;
 use Dedoc\Scramble\Support\InferExtensions\ValidatorTypeInfer;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\EnumValidationRuleExtension;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileValidationRuleExtension;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InValidationRuleExtension;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
@@ -122,6 +123,7 @@ class ScrambleServiceProvider extends PackageServiceProvider
 
                 $validationRuleExtensions = array_merge([
                     InValidationRuleExtension::class,
+                    EnumValidationRuleExtension::class,
                     FileValidationRuleExtension::class,
                 ], $validationRuleExtensions);
 

@@ -116,10 +116,10 @@ class FormRequestParametersExtractor implements ParameterExtractor
 
     protected function rules(string $requestClassName, RouteInfo $routeInfo): KeyedArrayType
     {
-        $infer = new Infer($index = new Infer\Scope\Index());
+        $infer = new Infer($index = new Infer\Scope\Index);
         $inferred = $infer->analyzeClass($requestClassName);
 
-        $scope = new GlobalScope();
+        $scope = new GlobalScope;
         $scope->index = $index;
 
         $methodDefinition = $inferred->getMethodDefinition(

@@ -18,8 +18,7 @@ class StaticRulesToParameters
         array $validationNodesResults,
         private TypeTransformer $openApiTransformer,
         private string $in = 'query',
-    ) {
-    }
+    ) {}
 
     public function mergeDotNotatedKeys(bool $value)
     {
@@ -51,7 +50,7 @@ class StaticRulesToParameters
 
     /**
      * @todo This is copied from the RulesToParameters, should be checked and potentially refactored.
-     * @param \Illuminate\Support\Collection $rules
+     *
      * @return \Illuminate\Support\Collection
      */
     private function handleConfirmed(Collection $rules)
