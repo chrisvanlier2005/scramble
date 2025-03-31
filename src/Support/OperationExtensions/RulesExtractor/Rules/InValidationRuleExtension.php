@@ -11,7 +11,7 @@ use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
 use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Validation\Rules\In;
 
-class InRule extends TypeBasedRule
+class InValidationRuleExtension extends ValidationRuleExtension
 {
     public function shouldHandle(Type $rule): bool
     {

@@ -2,6 +2,7 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\RulesExtractor;
 
+use Dedoc\Scramble\Infer\Extensions\ExtensionsBroker;
 use Dedoc\Scramble\PhpDoc\PhpDocTypeHelper;
 use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\Schema;
@@ -10,13 +11,14 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileRule;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InRule;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InValidationRuleExtension;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\LaravelRule;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\MoneyRule;
 use Dedoc\Scramble\Support\Type\ArrayItemType_;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
 
@@ -31,16 +33,18 @@ class StaticRulesToParameter
         private KeyedArrayType|LiteralStringType $rules,
         private ?PhpDocNode $docNode,
         private TypeTransformer $openApiTransformer,
+        private ExtensionsBroker $extensionsBroker,
         private string $in = 'query',
     ) {
     }
 
-    public function generate()
+    public function generate(): ?Parameter
     {
         if (count($this->docNode?->getTagsByName('@ignoreParam') ?? [])) {
             return null;
         }
 
+        // Support literal strings e.g. 'name' => 'string|required'
         if ($this->rules instanceof LiteralStringType) {
             $this->rules = new KeyedArrayType(
                 items: [
@@ -52,7 +56,7 @@ class StaticRulesToParameter
             );
         }
         /** @var \Illuminate\Support\Collection<int, mixed> $rules */
-        $rules = collect($this->rules->items)
+        $rules = Collection::make($this->rules->items)
             ->map(fn (ArrayItemType_ $rules) => $rules->value)
             ->map(function (mixed $rule) {
                 if ($rule instanceof LiteralStringType) {
@@ -63,24 +67,16 @@ class StaticRulesToParameter
             })
             ->sortByDesc($this->rulesSorter());
 
-        $extensions = [
-            InRule::class,
-            FileRule::class,
-        ];
-
         /** @var OpenApiType $type */
-        $type = $rules->reduce(function (OpenApiType $type, $rule) use ($extensions) {
+        $type = $rules->reduce(function (OpenApiType $type, $rule) {
             if (is_string($rule)) {
                 return $this->getTypeFromStringRule($type, $rule);
             }
 
-            // If it's handled by an extension (latest in the array) call the handle method.
-            foreach ($extensions as $extension) {
-                $extension = new $extension($this->openApiTransformer);
-
-                if ($extension->shouldHandle($rule)) {
-                    return $extension->handle($type, $rule);
-                }
+            if (
+                ($handled = $this->extensionsBroker->getValidationRule($rule, $type, $this->openApiTransformer)) !== null
+            ) {
+                return $handled;
             }
 
             return $this->getTypeFromObjectRule($type, $rule);

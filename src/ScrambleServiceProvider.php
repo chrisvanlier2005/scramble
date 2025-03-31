@@ -39,6 +39,9 @@ use Dedoc\Scramble\Support\InferExtensions\ResponseMethodReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\RuleExtension;
 use Dedoc\Scramble\Support\InferExtensions\TypeTraceInfer;
 use Dedoc\Scramble\Support\InferExtensions\ValidatorTypeInfer;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\AnonymousResourceCollectionTypeToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\CollectionToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\CursorPaginatorTypeToSchema;
@@ -112,6 +115,16 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     FileRuleCallsInfer::class,
                 ], $inferExtensionsClasses);
 
+                $validationRuleExtensions = array_values(array_filter(
+                    $extensions,
+                    fn (mixed $e) => is_a($e, ValidationRuleExtension::class, true),
+                ));
+
+                $validationRuleExtensions = array_merge([
+                    InValidationRuleExtension::class,
+                    FileValidationRuleExtension::class,
+                ], $validationRuleExtensions);
+
                 return array_merge(
                     [
                         new PossibleExceptionInfer,
@@ -130,7 +143,8 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     ],
                     array_map(function ($class) {
                         return app($class);
-                    }, $inferExtensionsClasses)
+                    }, $inferExtensionsClasses),
+                    $validationRuleExtensions,
                 );
             });
 

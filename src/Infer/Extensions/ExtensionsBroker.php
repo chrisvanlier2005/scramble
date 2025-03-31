@@ -135,6 +135,22 @@ class ExtensionsBroker
         return null;
     }
 
+    public function getValidationRule(Type $rule, OpenApiType $openApiType, TypeTransformer $openApiTransformer)
+    {
+        $extensions = Collection::make($this->extensions)
+            ->filter(fn (mixed $e) => is_string($e) && is_a($e, ValidationRuleExtension::class, true))
+            ->map(fn (mixed $e) => new $e($openApiTransformer))
+            ->filter(fn (ValidationRuleExtension $e) => $e->shouldHandle($rule));
+
+        foreach ($extensions as $extension) {
+            if ($propertyType = $extension->handle($openApiType, $rule)) {
+                return $propertyType;
+            }
+        }
+
+        return null;
+    }
+
     public function afterClassDefinitionCreated($event)
     {
         foreach ($this->afterClassDefinitionCreatedExtensions as $extension) {

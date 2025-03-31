@@ -12,7 +12,7 @@ use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\Rules\In;
 
-class FileRule extends TypeBasedRule
+class FileValidationRuleExtension extends ValidationRuleExtension
 {
     public function shouldHandle(Type $rule): bool
     {

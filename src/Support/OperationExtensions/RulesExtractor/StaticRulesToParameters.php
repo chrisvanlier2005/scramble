@@ -2,13 +2,12 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\RulesExtractor;
 
+use Dedoc\Scramble\Infer\Extensions\ExtensionsBroker;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Type\ArrayItemType_;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use PhpParser\Node;
-use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
 
 class StaticRulesToParameters
 {
@@ -31,14 +30,16 @@ class StaticRulesToParameters
 
     public function handle()
     {
-        return collect($this->rules->items)
-            // TODO: handle confirmed.
-            ->map(function (ArrayItemType_ $rules) {
+        $broker = app(ExtensionsBroker::class);
+
+        return Collection::make($this->rules->items)
+            ->map(function (ArrayItemType_ $rules) use ($broker) {
                 return (new StaticRulesToParameter(
                     name: $rules->key,
                     rules: $rules->value,
                     docNode: $rules->attributes()['docNode'] ?? null,
                     openApiTransformer: $this->openApiTransformer,
+                    extensionsBroker: $broker,
                     in: $this->in,
                 ))->generate();
             })
@@ -48,6 +49,11 @@ class StaticRulesToParameters
             ->all();
     }
 
+    /**
+     * @todo This is copied from the RulesToParameters, should be checked and potentially refactored.
+     * @param \Illuminate\Support\Collection $rules
+     * @return \Illuminate\Support\Collection
+     */
     private function handleConfirmed(Collection $rules)
     {
         $confirmedParamNameRules = $rules
