@@ -3,16 +3,23 @@
 namespace Dedoc\Scramble\Support\InferExtensions;
 
 use Dedoc\Scramble\Infer\Extensions\Event\MethodCallEvent;
+use Dedoc\Scramble\Infer\Extensions\Event\StaticMethodCallEvent;
 use Dedoc\Scramble\Infer\Extensions\MethodReturnTypeExtension;
+use Dedoc\Scramble\Infer\Extensions\StaticMethodReturnTypeExtension;
+use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\ObjectType;
 use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Validation\Rules\File;
 
-class FileRuleCallsInfer implements MethodReturnTypeExtension
+class FileRuleCallsInfer implements MethodReturnTypeExtension, StaticMethodReturnTypeExtension
 {
-    public function shouldHandle(ObjectType $type): bool
+    public function shouldHandle(ObjectType|string $type): bool
     {
-        if ($type->name === File::class) {
+        if ($type instanceof ObjectType && $type->name === File::class) {
+            return true;
+        }
+
+        if ($type === File::class) {
             return true;
         }
 
@@ -22,8 +29,15 @@ class FileRuleCallsInfer implements MethodReturnTypeExtension
     public function getMethodReturnType(MethodCallEvent $event): ?Type
     {
         return match ($event->name) {
+            default => $event->getInstance(), // Any method call should return the original generic.
+        };
+    }
 
-            default => $event->getInstance(),
+    public function getStaticMethodReturnType(StaticMethodCallEvent $event): ?Type
+    {
+        return match ($event->name) {
+            'types', 'default', 'image' => new Generic(File::class),
+            default => null,
         };
     }
 }
