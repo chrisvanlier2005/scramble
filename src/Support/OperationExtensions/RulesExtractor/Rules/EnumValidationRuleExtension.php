@@ -29,7 +29,7 @@ class EnumValidationRuleExtension extends ValidationRuleExtension
 
         $typeMapper = new RulesMapper($this->openApiTransformer);
 
-        $enum = new Enum($rule->templateTypes[0]->value);
+        $enum = new Enum("\\" . $rule->templateTypes[0]->value);
 
         return $typeMapper->enum($previousType, $enum);
     }
