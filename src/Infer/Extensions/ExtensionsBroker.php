@@ -3,6 +3,10 @@
 namespace Dedoc\Scramble\Infer\Extensions;
 
 use Dedoc\Scramble\Infer\Extensions\Event\SideEffectCallEvent;
+use Dedoc\Scramble\Support\Generator\TypeTransformer;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
+use Dedoc\Scramble\Support\Type\Type;
+use Illuminate\Support\Collection;
 
 class ExtensionsBroker
 {
@@ -60,7 +64,7 @@ class ExtensionsBroker
 
     public function getPropertyType($event)
     {
-        foreach ($this->propertyTypeExtensions as $extension) {
+        foreach (array_reverse($this->propertyTypeExtensions) as $extension) {
             if (! $extension->shouldHandle($event->getInstance())) {
                 continue;
             }
@@ -135,7 +139,7 @@ class ExtensionsBroker
         return null;
     }
 
-    public function getValidationRule(Type $rule, OpenApiType $openApiType, TypeTransformer $openApiTransformer)
+    public function getValidationRule(Type $rule, \Dedoc\Scramble\Support\Generator\Types\Type $openApiType, TypeTransformer $openApiTransformer)
     {
         $extensions = Collection::make($this->extensions)
             ->filter(fn (mixed $e) => is_string($e) && is_a($e, ValidationRuleExtension::class, true))
