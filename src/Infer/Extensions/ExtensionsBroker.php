@@ -35,6 +35,9 @@ class ExtensionsBroker
     /** @var AfterSideEffectCallAnalyzed[] */
     private array $afterSideEffectCallAnalyzedExtensions;
 
+    /** @var array<class-string<ValidationRuleExtension>> */
+    private array $validationRuleExtensions;
+
     /**
      * @var string<InferExtension>[]
      */
@@ -92,6 +95,10 @@ class ExtensionsBroker
         $this->afterSideEffectCallAnalyzedExtensions = array_filter($extensions, function ($e) {
             return $e instanceof AfterSideEffectCallAnalyzed;
         });
+
+        $this->validationRuleExtensions = array_filter($extensions, function ($e) {
+            return is_string($e) && is_a($e, ValidationRuleExtension::class, true);
+        });
     }
 
     private function sortExtensionsInOrder(array $arrayToSort, array $arrayToSortWithItems): array
@@ -148,7 +155,7 @@ class ExtensionsBroker
 
     public function getPropertyType($event)
     {
-        foreach (array_reverse($this->propertyTypeExtensions) as $extension) {
+        foreach ($this->propertyTypeExtensions as $extension) {
             if (! $extension->shouldHandle($event->getInstance())) {
                 continue;
             }
@@ -223,22 +230,6 @@ class ExtensionsBroker
         return null;
     }
 
-    public function getValidationRule(Type $rule, \Dedoc\Scramble\Support\Generator\Types\Type $openApiType, TypeTransformer $openApiTransformer)
-    {
-        $extensions = Collection::make($this->extensions)
-            ->filter(fn (mixed $e) => is_string($e) && is_a($e, ValidationRuleExtension::class, true))
-            ->map(fn (mixed $e) => new $e($openApiTransformer))
-            ->filter(fn (ValidationRuleExtension $e) => $e->shouldHandle($rule));
-
-        foreach ($extensions as $extension) {
-            if ($propertyType = $extension->handle($openApiType, $rule)) {
-                return $propertyType;
-            }
-        }
-
-        return null;
-    }
-
     public function afterClassDefinitionCreated($event)
     {
         foreach ($this->afterClassDefinitionCreatedExtensions as $extension) {
@@ -259,6 +250,23 @@ class ExtensionsBroker
 
             $extension->afterSideEffectCallAnalyzed($event);
         }
+    }
+
+    public function getValidationRule(Type $rule, \Dedoc\Scramble\Support\Generator\Types\Type $openApiType, TypeTransformer $openApiTransformer)
+    {
+        foreach ($this->validationRuleExtensions as $extension) {
+            $instance = new $extension($openApiTransformer);
+
+            if (! $instance->shouldHandle($rule)) {
+                continue;
+            }
+
+            if ($propertyType = $instance->handle($openApiType, $rule)) {
+                return $propertyType;
+            }
+        }
+
+        return null;
     }
 
     public function getAnyMethodReturnType(AnyMethodCallEvent $event)

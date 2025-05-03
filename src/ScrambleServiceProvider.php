@@ -124,7 +124,7 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     fn ($e) => is_a($e, InferExtension::class, true),
                 ));
 
-                $inferExtensionsClasses = array_merge([
+                $inferExtensionsClasses = array_merge($inferExtensionsClasses, [
                     ResponseMethodReturnTypeExtension::class,
                     JsonResourceExtension::class,
                     ResourceResponseMethodReturnTypeExtension::class,
@@ -132,7 +132,7 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     ModelExtension::class,
                     RuleExtension::class,
                     FileRuleCallsInfer::class,
-                ], $inferExtensionsClasses);
+                ]);
 
                 $validationRuleExtensions = array_values(array_filter(
                     $extensions,
