@@ -86,10 +86,12 @@ class FormRequestParametersExtractor implements ParameterExtractor
 
         $phpDocReflector = SchemaClassDocReflector::createFromDocString($classReflector->getReflection()->getDocComment() ?: '');
 
+        // Support schema name override with `@schemaName('name')`
         $schemaName = ($phpDocReflector->getTagValue('@ignoreSchema')->value ?? null) !== null
             ? null
             : $phpDocReflector->getSchemaName($requestClassName);
 
+        // Support schema name override with `#[SchemaName('name')]`
         $schemaNameAttribute = ($classReflector->getReflection()
             ->getAttributes(SchemaName::class)[0] ?? null)?->newInstance();
 
@@ -105,7 +107,7 @@ class FormRequestParametersExtractor implements ParameterExtractor
                         && $node->key instanceof Node\Scalar\String_
                         && $node->getAttribute('parsedPhpDoc'),
                 ),
-                rules: $this->rules($requestClassName, $routeInfo),
+                rules: $this->rules($requestClassName),
                 typeTransformer: $this->openApiTransformer,
                 in: in_array(mb_strtolower($routeInfo->route->methods()[0]), RequestBodyExtension::HTTP_METHODS_WITHOUT_REQUEST_BODY)
                     ? 'query'
@@ -116,7 +118,11 @@ class FormRequestParametersExtractor implements ParameterExtractor
         );
     }
 
-    protected function rules(string $requestClassName, RouteInfo $routeInfo): KeyedArrayType
+    /**
+     * @param string $requestClassName
+     * @return \Dedoc\Scramble\Support\Type\KeyedArrayType
+     */
+    protected function rules(string $requestClassName): KeyedArrayType
     {
         $infer = new Infer($index = new Infer\Scope\Index);
         $inferred = $infer->analyzeClass($requestClassName);
@@ -124,10 +130,7 @@ class FormRequestParametersExtractor implements ParameterExtractor
         $scope = new GlobalScope;
         $scope->index = $index;
 
-        $methodDefinition = $inferred->getMethodDefinition(
-            'rules',
-            $scope,
-        );
+        $methodDefinition = $inferred->getMethodDefinition('rules', $scope);
 
         return $methodDefinition->type->returnType;
     }

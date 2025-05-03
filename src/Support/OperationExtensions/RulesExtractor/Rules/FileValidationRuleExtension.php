@@ -2,7 +2,9 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules;
 
+use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
+use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\RulesMapper;
 use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\Type;

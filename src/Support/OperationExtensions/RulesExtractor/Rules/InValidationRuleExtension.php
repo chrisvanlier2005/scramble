@@ -9,10 +9,17 @@ use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\KeyedArrayType;
 use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
 use Dedoc\Scramble\Support\Type\Type;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rules\In;
 
 class InValidationRuleExtension extends ValidationRuleExtension
 {
+    /**
+     * Determine whether this extension should handle the given type.
+     *
+     * @param \Dedoc\Scramble\Support\Type\Type $rule
+     * @return bool
+     */
     public function shouldHandle(Type $rule): bool
     {
         return $rule instanceof Generic
@@ -20,26 +27,29 @@ class InValidationRuleExtension extends ValidationRuleExtension
             && $rule->isInstanceOf(In::class);
     }
 
+    /**
+     * Handle the given type and return the transformed OpenApi type.
+     *
+     * @param \Dedoc\Scramble\Support\Generator\Types\Type $previousType
+     * @param \Dedoc\Scramble\Support\Type\Type $rule
+     * @return \Dedoc\Scramble\Support\Generator\Types\Type
+     */
     public function handle(OpenApiType $previousType, Type $rule): OpenApiType
     {
-        if (
-            ! $rule instanceof Generic
-            || ! $rule->isInstanceOf(In::class)
-            || count($rule->templateTypes) !== 1
-        ) {
-            return $previousType;
-        }
-
-        $typeMapper = new RulesMapper(
-            $this->openApiTransformer,
-        );
+        $typeMapper = new RulesMapper($this->openApiTransformer);
 
         return $typeMapper->in($previousType, $this->getNormalizedValues($rule->templateTypes[0]));
     }
 
-    private function getNormalizedValues(KeyedArrayType $rule)
+    /**
+     * Get the normalized values from the In rule.
+     *
+     * @param \Dedoc\Scramble\Support\Type\KeyedArrayType $rule
+     * @return array<string>
+     */
+    private function getNormalizedValues(KeyedArrayType $rule): array
     {
-        return collect($rule->items)
+        return (new Collection($rule->items))
             ->map(fn (ArrayItemType_ $itemType) => $itemType->value)
             ->filter(fn (Type $t) => $t instanceof LiteralStringType)
             ->map(fn (LiteralStringType $t) => $t->value)

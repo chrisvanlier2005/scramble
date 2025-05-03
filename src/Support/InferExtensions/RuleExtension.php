@@ -17,14 +17,26 @@ use Illuminate\Validation\Rules\Unique;
 
 class RuleExtension implements StaticMethodReturnTypeExtension
 {
+    /**
+     * Determine whether this extension should handle the given type.
+     *
+     * @param string $name
+     * @return bool
+     */
     public function shouldHandle(string $name): bool
     {
         return $name === Rule::class;
     }
 
+    /**
+     * Get the static method call return type.
+     *
+     * @param \Dedoc\Scramble\Infer\Extensions\Event\StaticMethodCallEvent $event
+     * @return \Dedoc\Scramble\Support\Type\Type|null
+     */
     public function getStaticMethodReturnType(StaticMethodCallEvent $event): ?Type
     {
-        return rescue(fn () => match ($event->name) {
+        return match ($event->name) {
             'in' => new Generic(In::class, [
                 $event->getArg('values', 0),
             ]),
@@ -44,6 +56,6 @@ class RuleExtension implements StaticMethodReturnTypeExtension
                 $event->getArg('condition', 0),
             ]),
             default => null,
-        });
+        };
     }
 }
