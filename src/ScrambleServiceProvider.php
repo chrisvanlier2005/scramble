@@ -26,6 +26,7 @@ use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\IndexBuilders\IndexBuilder;
 use Dedoc\Scramble\Support\InferExtensions\AbortHelpersExceptionInfer;
 use Dedoc\Scramble\Support\InferExtensions\ArrayMergeReturnTypeExtension;
+use Dedoc\Scramble\Support\InferExtensions\FileRuleCallsInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceCallsTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceCreationInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceExtension;
@@ -36,8 +37,13 @@ use Dedoc\Scramble\Support\InferExtensions\ResourceCollectionTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\ResourceResponseMethodReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\ResponseFactoryTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\ResponseMethodReturnTypeExtension;
+use Dedoc\Scramble\Support\InferExtensions\RuleExtension;
 use Dedoc\Scramble\Support\InferExtensions\TypeTraceInfer;
 use Dedoc\Scramble\Support\InferExtensions\ValidatorTypeInfer;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\EnumValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
 use Dedoc\Scramble\Support\Type\FunctionType;
 use Dedoc\Scramble\Support\Type\VoidType;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\AnonymousResourceCollectionTypeToSchema;
@@ -122,7 +128,20 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     ResourceResponseMethodReturnTypeExtension::class,
                     JsonResponseMethodReturnTypeExtension::class,
                     ModelExtension::class,
+                    RuleExtension::class,
+                    FileRuleCallsInfer::class,
                 ], $inferExtensionsClasses);
+
+                $validationRuleExtensions = array_values(array_filter(
+                    $extensions,
+                    fn (mixed $e) => is_a($e, ValidationRuleExtension::class, true),
+                ));
+
+                $validationRuleExtensions = array_merge([
+                    InValidationRuleExtension::class,
+                    EnumValidationRuleExtension::class,
+                    FileValidationRuleExtension::class,
+                ], $validationRuleExtensions);
 
                 return array_merge(
                     [
@@ -142,7 +161,8 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     ],
                     array_map(function ($class) {
                         return app($class);
-                    }, $inferExtensionsClasses)
+                    }, $inferExtensionsClasses),
+                    $validationRuleExtensions,
                 );
             });
 
