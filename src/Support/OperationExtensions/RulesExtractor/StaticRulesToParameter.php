@@ -18,6 +18,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
 
+/**
+ * Mostly copied over from {@see \Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\RulesToParameter}
+ * TODO: Refactor.
+ */
 class StaticRulesToParameter
 {
     const RULES_PRIORITY = [
@@ -33,6 +37,9 @@ class StaticRulesToParameter
         private string $in = 'query',
     ) {}
 
+    /**
+     * @return \Dedoc\Scramble\Support\Generator\Parameter|null
+     */
     public function generate(): ?Parameter
     {
         if (count($this->docNode?->getTagsByName('@ignoreParam') ?? [])) {
@@ -50,6 +57,7 @@ class StaticRulesToParameter
                 ],
             );
         }
+
         /** @var \Illuminate\Support\Collection<int, mixed> $rules */
         $rules = Collection::make($this->rules->items)
             ->map(fn (ArrayItemType_ $rules) => $rules->value)
@@ -131,6 +139,9 @@ class StaticRulesToParameter
         return $parameter;
     }
 
+    /**
+     * @return \Closure
+     */
     private function rulesSorter()
     {
         return function ($v) {
@@ -144,6 +155,11 @@ class StaticRulesToParameter
         };
     }
 
+    /**
+     * @param \Dedoc\Scramble\Support\Generator\Types\Type $type
+     * @param string $rule
+     * @return \Dedoc\Scramble\Support\Generator\Types\Type
+     */
     private function getTypeFromStringRule(OpenApiType $type, string $rule)
     {
         $rulesHandler = new RulesMapper($this->openApiTransformer);
@@ -158,6 +174,11 @@ class StaticRulesToParameter
             : $type;
     }
 
+    /**
+     * @param \Dedoc\Scramble\Support\Generator\Types\Type $type
+     * @param $rule
+     * @return \Dedoc\Scramble\Support\Generator\Types\Type
+     */
     private function getTypeFromObjectRule(OpenApiType $type, $rule)
     {
         $rulesHandler = new RulesMapper($this->openApiTransformer);
