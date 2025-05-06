@@ -29,7 +29,7 @@ class StaticRulesToParameter
     ];
 
     public function __construct(
-        private string $name,
+        private ?string $name,
         private KeyedArrayType|LiteralStringType $rules,
         private ?PhpDocNode $docNode,
         private TypeTransformer $openApiTransformer,
@@ -42,6 +42,8 @@ class StaticRulesToParameter
      */
     public function generate(): ?Parameter
     {
+        $this->name ??= 'unknown';
+
         if (count($this->docNode?->getTagsByName('@ignoreParam') ?? [])) {
             return null;
         }

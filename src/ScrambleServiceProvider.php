@@ -146,6 +146,9 @@ class ScrambleServiceProvider extends PackageServiceProvider
                 ], $validationRuleExtensions);
 
                 return array_merge(
+                    array_map(function ($class) {
+                        return app($class);
+                    }, $inferExtensionsClasses),
                     [
                         new PossibleExceptionInfer,
                         new AbortHelpersExceptionInfer,
@@ -162,9 +165,6 @@ class ScrambleServiceProvider extends PackageServiceProvider
                         /* Keep this extension last, so the trace info is preserved. */
                         new TypeTraceInfer,
                     ],
-                    array_map(function ($class) {
-                        return app($class);
-                    }, $inferExtensionsClasses),
                     $validationRuleExtensions,
                 );
             });
