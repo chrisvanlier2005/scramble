@@ -10,16 +10,16 @@ use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Validation\Rules\File;
 
-class FileValidationRuleExtension extends ValidationRuleExtension
+class FileRuleExtension extends ValidationRuleExtension
 {
-    public function shouldHandle(Type $rule): bool
+    public function shouldHandle(mixed $rule): bool
     {
         return $rule instanceof Generic
             && $rule->isInstanceOf(File::class)
             && count($rule->templateTypes) === 0;
     }
 
-    public function handle(OpenApiType $previousType, Type $rule): OpenApiType
+    public function handle(OpenApiType $previousType, mixed $rule): OpenApiType
     {
         return (new RulesMapper($this->openApiTransformer))->file($previousType);
     }

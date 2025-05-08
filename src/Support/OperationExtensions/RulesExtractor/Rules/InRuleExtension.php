@@ -11,8 +11,9 @@ use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
 use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rules\In;
+use Webmozart\Assert\Assert;
 
-class InValidationRuleExtension extends ValidationRuleExtension
+class InRuleExtension extends ValidationRuleExtension
 {
     /**
      * Determine whether this extension should handle the given type.
@@ -20,7 +21,7 @@ class InValidationRuleExtension extends ValidationRuleExtension
      * @param \Dedoc\Scramble\Support\Type\Type $rule
      * @return bool
      */
-    public function shouldHandle(Type $rule): bool
+    public function shouldHandle(mixed $rule): bool
     {
         return $rule instanceof Generic
             && count($rule->templateTypes) === 1
@@ -34,8 +35,10 @@ class InValidationRuleExtension extends ValidationRuleExtension
      * @param \Dedoc\Scramble\Support\Type\Type $rule
      * @return \Dedoc\Scramble\Support\Generator\Types\Type
      */
-    public function handle(OpenApiType $previousType, Type $rule): OpenApiType
+    public function handle(OpenApiType $previousType, mixed $rule): OpenApiType
     {
+        Assert::isInstanceOf($rule, Generic::class);
+
         $typeMapper = new RulesMapper($this->openApiTransformer);
 
         return $typeMapper->in($previousType, $this->getNormalizedValues($rule->templateTypes[0]));

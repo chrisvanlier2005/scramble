@@ -12,7 +12,7 @@ abstract class ValidationRuleExtension
         public TypeTransformer $openApiTransformer,
     ) {}
 
-    abstract public function shouldHandle(Type $rule): bool;
+    abstract public function shouldHandle(mixed $rule): bool;
 
-    abstract public function handle(OpenApiType $previousType, Type $rule): OpenApiType;
+    abstract public function handle(OpenApiType $previousType, mixed $rule): OpenApiType;
 }

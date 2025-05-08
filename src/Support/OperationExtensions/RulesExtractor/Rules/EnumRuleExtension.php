@@ -8,16 +8,16 @@ use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Validation\Rules\Enum;
 
-class EnumValidationRuleExtension extends ValidationRuleExtension
+class EnumRuleExtension extends ValidationRuleExtension
 {
-    public function shouldHandle(Type $rule): bool
+    public function shouldHandle(mixed $rule): bool
     {
         return $rule instanceof Generic
             && count($rule->templateTypes) === 1
             && $rule->isInstanceOf(Enum::class);
     }
 
-    public function handle(OpenApiType $previousType, Type $rule): OpenApiType
+    public function handle(OpenApiType $previousType, mixed $rule): OpenApiType
     {
         if (
             ! $rule instanceof Generic
@@ -29,7 +29,11 @@ class EnumValidationRuleExtension extends ValidationRuleExtension
 
         $typeMapper = new RulesMapper($this->openApiTransformer);
 
-        $enum = new Enum("\\" . $rule->templateTypes[0]->value);
+        $class = str_starts_with($rule->templateTypes[0]->value, '\\')
+            ? $rule->templateTypes[0]->value
+            : "\\" . $rule->templateTypes[0]->value;
+
+        $enum = new Enum($class);
 
         return $typeMapper->enum($previousType, $enum);
     }

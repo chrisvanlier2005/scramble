@@ -2,6 +2,7 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\RulesExtractor;
 
+use Dedoc\Scramble\Infer\Extensions\ExtensionsBroker;
 use Dedoc\Scramble\PhpDoc\PhpDocTypeHelper;
 use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\Schema;
@@ -46,6 +47,12 @@ class RulesToParameter
         $type = $rules->reduce(function (OpenApiType $type, $rule) {
             if (is_string($rule)) {
                 return $this->getTypeFromStringRule($type, $rule);
+            }
+
+            $broker = app(ExtensionsBroker::class);
+
+            if (!is_null($handled = $broker->getValidationRule($rule, $type, $this->openApiTransformer))) {
+                return $handled;
             }
 
             return method_exists($rule, 'docs')

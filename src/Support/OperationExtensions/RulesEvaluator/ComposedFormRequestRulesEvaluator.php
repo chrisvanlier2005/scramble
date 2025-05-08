@@ -27,6 +27,7 @@ class ComposedFormRequestRulesEvaluator implements RulesEvaluator
         )?->expr ?? null;
 
         $evaluators = [
+            new StaticRulesEvaluator($this->classReflector),
             new FormRequestRulesEvaluator($this->classReflector, $this->route),
             new NodeRulesEvaluator($this->printer, $rulesMethodNode, $returnNode),
         ];
@@ -35,6 +36,7 @@ class ComposedFormRequestRulesEvaluator implements RulesEvaluator
             try {
                 return $evaluator->handle();
             } catch (\Throwable $e) {
+                dd($e);
                 // @todo communicate error
             }
         }

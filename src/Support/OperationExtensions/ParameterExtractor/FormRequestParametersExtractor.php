@@ -7,6 +7,7 @@ use Dedoc\Scramble\Infer;
 use Dedoc\Scramble\Infer\Scope\GlobalScope;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\OperationExtensions\RequestBodyExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesEvaluator\ComposedFormRequestRulesEvaluator;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\GeneratesParametersFromRules;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\ParametersExtractionResult;
 use Dedoc\Scramble\Support\RouteInfo;
@@ -100,14 +101,14 @@ class FormRequestParametersExtractor implements ParameterExtractor
             : $schemaName;
 
         return new ParametersExtractionResult(
-            parameters: $this->makeParametersFromStaticRules(
+            parameters: $this->makeParameters(
                 node: (new NodeFinder)->find(
                     Arr::wrap($classReflector->getMethod('rules')->getAstNode()->stmts),
                     fn (Node $node) => $node instanceof Node\Expr\ArrayItem
                         && $node->key instanceof Node\Scalar\String_
                         && $node->getAttribute('parsedPhpDoc'),
                 ),
-                rules: $this->rules($requestClassName),
+                rules: (new ComposedFormRequestRulesEvaluator($this->printer, $classReflector, $routeInfo->route))->handle(),
                 typeTransformer: $this->openApiTransformer,
                 in: in_array(mb_strtolower($routeInfo->route->methods()[0]), RequestBodyExtension::HTTP_METHODS_WITHOUT_REQUEST_BODY)
                     ? 'query'
@@ -116,22 +117,5 @@ class FormRequestParametersExtractor implements ParameterExtractor
             schemaName: $schemaName,
             description: $phpDocReflector->getDescription(),
         );
-    }
-
-    /**
-     * @param string $requestClassName
-     * @return \Dedoc\Scramble\Support\Type\KeyedArrayType
-     */
-    protected function rules(string $requestClassName): KeyedArrayType
-    {
-        $infer = new Infer($index = new Infer\Scope\Index);
-        $inferred = $infer->analyzeClass($requestClassName);
-
-        $scope = new GlobalScope;
-        $scope->index = $index;
-
-        $methodDefinition = $inferred->getMethodDefinition('rules', $scope);
-
-        return $methodDefinition->type->returnType;
     }
 }
