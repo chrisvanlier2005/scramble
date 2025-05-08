@@ -26,35 +26,6 @@ class JsonResourceCreationInfer implements ExpressionTypeInferExtension
             return $this->setResourceType(new Generic($node->class->toString()), $scope, $node->args);
         }
 
-        /**
-         * TODO: keep extension up to date with dedoc/scramble
-         *
-         * * JsonResource::make()
-         * * JsonResource::collection()
-         */
-        if ($node instanceof Node\Expr\StaticCall) {
-            if (! ($node->class instanceof Node\Name && is_a($node->class->toString(), JsonResource::class, true))) {
-                return null;
-            }
-
-            if (! $node->name instanceof Node\Identifier) {
-                return null;
-            }
-
-            if ($node->name->toString() === 'collection') {
-                return new Generic(
-                    AnonymousResourceCollection::class,
-                    [
-                        $this->setResourceType(new Generic($node->class->toString()), $scope, $node->args),
-                    ],
-                );
-            }
-
-            if ($node->name->toString() === 'make') {
-                return $this->setResourceType(new Generic($node->class->toString()), $scope, $node->args);
-            }
-        }
-
         return null;
     }
 
