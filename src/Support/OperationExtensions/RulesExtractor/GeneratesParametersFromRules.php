@@ -11,9 +11,4 @@ trait GeneratesParametersFromRules
     {
         return (new RulesToParameters($rules, $node, $typeTransformer, $in))->mergeDotNotatedKeys(false)->handle();
     }
-
-    private function makeParametersFromStaticRules($node, KeyedArrayType $rules, TypeTransformer $typeTransformer, string $in = 'query')
-    {
-        return (new StaticRulesToParameters($rules, $node, $typeTransformer, $in))->mergeDotNotatedKeys(false)->handle();
-    }
 }
