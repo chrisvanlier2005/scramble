@@ -5,9 +5,9 @@ namespace Dedoc\Scramble\Infer\Extensions;
 use Dedoc\Scramble\Infer\Extensions\Event\AnyMethodCallEvent;
 use Dedoc\Scramble\Infer\Extensions\Event\SideEffectCallEvent;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\RuleExtension;
 use Dedoc\Scramble\Support\Type\Type;
-use Illuminate\Support\Collection;
+use Dedoc\Scramble\Support\Generator;
 
 class ExtensionsBroker
 {
@@ -35,7 +35,7 @@ class ExtensionsBroker
     /** @var AfterSideEffectCallAnalyzed[] */
     private array $afterSideEffectCallAnalyzedExtensions;
 
-    /** @var array<class-string<ValidationRuleExtension>> */
+    /** @var array<class-string<RuleExtension>> */
     private array $validationRuleExtensions;
 
     /**
@@ -97,7 +97,7 @@ class ExtensionsBroker
         });
 
         $this->validationRuleExtensions = array_filter($extensions, function ($e) {
-            return is_string($e) && is_a($e, ValidationRuleExtension::class, true);
+            return is_string($e) && is_a($e, RuleExtension::class, true);
         });
     }
 
@@ -252,16 +252,19 @@ class ExtensionsBroker
         }
     }
 
-    public function getValidationRule(Type $rule, \Dedoc\Scramble\Support\Generator\Types\Type $openApiType, TypeTransformer $openApiTransformer)
-    {
+    public function getValidationRuleType(
+        Type $rule,
+        Generator\Types\Type $previousType,
+        TypeTransformer $openApiTransformer,
+    ): ?Generator\Types\Type {
         foreach ($this->validationRuleExtensions as $extension) {
             $instance = new $extension($openApiTransformer);
 
-            if (! $instance->shouldHandle($rule)) {
+            if (!$instance->shouldHandle($rule)) {
                 continue;
             }
 
-            if ($propertyType = $instance->handle($openApiType, $rule)) {
+            if ($propertyType = $instance->handle($previousType, $rule)) {
                 return $propertyType;
             }
         }

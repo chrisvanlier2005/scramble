@@ -11,6 +11,7 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
+use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
@@ -51,8 +52,12 @@ class RulesToParameter
 
             $broker = app(ExtensionsBroker::class);
 
-            if (!is_null($handled = $broker->getValidationRule($rule, $type, $this->openApiTransformer))) {
-                return $handled;
+            if ($rule instanceof Type) {
+                $handled = $broker->getValidationRuleType($rule, $type, $this->openApiTransformer);
+
+                if (!is_null($handled)) {
+                    return $handled;
+                }
             }
 
             return method_exists($rule, 'docs')

@@ -6,7 +6,7 @@ use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\Type\Type;
 
-abstract class ValidationRuleExtension
+abstract class RuleExtension
 {
     public function __construct(
         public TypeTransformer $openApiTransformer,

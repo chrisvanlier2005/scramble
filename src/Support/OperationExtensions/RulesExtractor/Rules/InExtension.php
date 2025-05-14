@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\Rules\In;
 use Webmozart\Assert\Assert;
 
-class InRuleExtension extends ValidationRuleExtension
+class InExtension extends RuleExtension
 {
     /**
      * Determine whether this extension should handle the given type.

@@ -10,7 +10,7 @@ use Dedoc\Scramble\Support\Type\Generic;
 use Dedoc\Scramble\Support\Type\Type;
 use Illuminate\Validation\Rules\File;
 
-class FileRuleExtension extends ValidationRuleExtension
+class FileExtension extends RuleExtension
 {
     public function shouldHandle(mixed $rule): bool
     {

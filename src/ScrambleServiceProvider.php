@@ -42,10 +42,10 @@ use Dedoc\Scramble\Support\InferExtensions\ResponseMethodReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\RuleExtension;
 use Dedoc\Scramble\Support\InferExtensions\TypeTraceInfer;
 use Dedoc\Scramble\Support\InferExtensions\ValidatorTypeInfer;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\EnumRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\EnumExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\RuleExtension;
 use Dedoc\Scramble\Support\Type\FunctionType;
 use Dedoc\Scramble\Support\Type\VoidType;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\AnonymousResourceCollectionTypeToSchema;
@@ -136,13 +136,13 @@ class ScrambleServiceProvider extends PackageServiceProvider
 
                 $validationRuleExtensions = array_values(array_filter(
                     $extensions,
-                    fn (mixed $e) => is_a($e, ValidationRuleExtension::class, true),
+                    fn (mixed $e) => is_a($e, RuleExtension::class, true),
                 ));
 
                 $validationRuleExtensions = array_merge([
-                    InRuleExtension::class,
-                    EnumRuleExtension::class,
-                    FileRuleExtension::class,
+                    InExtension::class,
+                    EnumExtension::class,
+                    FileExtension::class,
                 ], $validationRuleExtensions);
 
                 return array_merge(
