@@ -53,7 +53,7 @@ class PossibleExceptionInfer implements ExpressionExceptionExtension
             if (
                 $isCallToAuthorize
                 && $node->class instanceof FullyQualified
-                && is_a($node->class->name, Gate::class, true)
+                && is_a($node->class->toString(), Gate::class, true)
             ) {
                 return [
                     new ObjectType(AuthorizationException::class),

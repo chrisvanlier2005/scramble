@@ -8,6 +8,7 @@ use PhpParser\ConstExprEvaluator;
 use PhpParser\Node;
 use PhpParser\Node\FunctionLike;
 use PhpParser\PrettyPrinter;
+use stdClass;
 
 class NodeRulesEvaluator implements RulesEvaluator
 {
@@ -15,6 +16,7 @@ class NodeRulesEvaluator implements RulesEvaluator
         private PrettyPrinter $printer,
         private FunctionLike $functionLikeNode,
         private ?Node $rulesNode,
+        private ?string $className,
     ) {}
 
     public function handle(): array
@@ -51,6 +53,17 @@ class NodeRulesEvaluator implements RulesEvaluator
             ->all();
 
         $rules = (new ConstExprEvaluator(function ($expr) use ($injectableParams) {
+            $default = new stdClass;
+
+            $evaluatedConstFetch = (new ConstFetchEvaluator([
+                'self' => $this->className,
+                'static' => $this->className,
+            ]))->evaluate($expr, $default);
+
+            if ($evaluatedConstFetch !== $default) {
+                return $evaluatedConstFetch;
+            }
+
             $code = $this->printer->prettyPrint([$expr]);
 
             extract($injectableParams);
@@ -62,7 +75,7 @@ class NodeRulesEvaluator implements RulesEvaluator
             }
 
             return null;
-        }))->evaluateDirectly($this->rulesNode);
+        }))->evaluateDirectly($this->rulesNode) ?? [];
 
         foreach ($rules as &$item) {
             if (is_string($item)) {
@@ -76,6 +89,6 @@ class NodeRulesEvaluator implements RulesEvaluator
             }
         }
 
-        return $rules ?? [];
+        return $rules;
     }
 }

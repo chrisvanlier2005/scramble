@@ -64,6 +64,10 @@ class TypeHelper
                 );
             }
 
+            if ($typeNode->name === 'mixed') {
+                return new MixedType;
+            }
+
             if ($typeNode->name === 'null') {
                 return new NullType;
             }
@@ -90,7 +94,7 @@ class TypeHelper
     }
 
     /**
-     * @param  Node\Arg[]  $args
+     * @param  (Node\Arg|Node\VariadicPlaceholder)[]  $args
      * @param  array{0: string, 1: int}  $parameterNameIndex
      */
     public static function getArgType(Scope $scope, array $args, array $parameterNameIndex, ?Type $default = null)
@@ -130,7 +134,7 @@ class TypeHelper
     }
 
     /**
-     * @param  Node\Arg[]  $args
+     * @param  (Node\Arg|Node\VariadicPlaceholder)[]  $args
      * @param  array{0: string, 1: int}  $parameterNameIndex
      */
     private static function getArg(array $args, array $parameterNameIndex)

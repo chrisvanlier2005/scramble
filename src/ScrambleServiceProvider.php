@@ -6,6 +6,8 @@ use Dedoc\Scramble\Configuration\GeneratorConfigCollection;
 use Dedoc\Scramble\Configuration\OperationTransformers;
 use Dedoc\Scramble\Console\Commands\AnalyzeDocumentation;
 use Dedoc\Scramble\Console\Commands\ExportDocumentation;
+use Dedoc\Scramble\DocumentTransformers\AddDocumentTags;
+use Dedoc\Scramble\DocumentTransformers\CleanupUnusedResponseReferencesTransformer;
 use Dedoc\Scramble\Extensions\ExceptionToResponseExtension;
 use Dedoc\Scramble\Extensions\OperationExtension;
 use Dedoc\Scramble\Extensions\TypeToSchemaExtension;
@@ -24,29 +26,25 @@ use Dedoc\Scramble\Support\ExceptionToResponseExtensions\NotFoundExceptionToResp
 use Dedoc\Scramble\Support\ExceptionToResponseExtensions\ValidationExceptionToResponseExtension;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\IndexBuilders\IndexBuilder;
+use Dedoc\Scramble\Support\IndexBuilders\PaginatorsCandidatesBuilder;
 use Dedoc\Scramble\Support\InferExtensions\AbortHelpersExceptionInfer;
 use Dedoc\Scramble\Support\InferExtensions\ArrayMergeReturnTypeExtension;
-use Dedoc\Scramble\Support\InferExtensions\FileRuleCallsInfer;
-use Dedoc\Scramble\Support\InferExtensions\JsonResourceCallsTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceCreationInfer;
 use Dedoc\Scramble\Support\InferExtensions\JsonResourceExtension;
 use Dedoc\Scramble\Support\InferExtensions\JsonResponseMethodReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\ModelExtension;
+use Dedoc\Scramble\Support\InferExtensions\PaginateMethodsReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\PossibleExceptionInfer;
 use Dedoc\Scramble\Support\InferExtensions\ResourceCollectionTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\ResourceResponseMethodReturnTypeExtension;
 use Dedoc\Scramble\Support\InferExtensions\ResponseFactoryTypeInfer;
 use Dedoc\Scramble\Support\InferExtensions\ResponseMethodReturnTypeExtension;
-use Dedoc\Scramble\Support\InferExtensions\RuleExtension;
 use Dedoc\Scramble\Support\InferExtensions\TypeTraceInfer;
 use Dedoc\Scramble\Support\InferExtensions\ValidatorTypeInfer;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\EnumValidationRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\FileValidationRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\InValidationRuleExtension;
-use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\Rules\ValidationRuleExtension;
 use Dedoc\Scramble\Support\Type\FunctionType;
 use Dedoc\Scramble\Support\Type\VoidType;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\AnonymousResourceCollectionTypeToSchema;
+use Dedoc\Scramble\Support\TypeToSchemaExtensions\BinaryFileResponseToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\CollectionToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\CursorPaginatorTypeToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\EloquentCollectionToSchema;
@@ -57,6 +55,7 @@ use Dedoc\Scramble\Support\TypeToSchemaExtensions\ModelToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\PaginatorTypeToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\ResourceResponseTypeToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\ResponseTypeToSchema;
+use Dedoc\Scramble\Support\TypeToSchemaExtensions\StreamedResponseToSchema;
 use Dedoc\Scramble\Support\TypeToSchemaExtensions\VoidTypeToSchema;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
@@ -122,33 +121,21 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     fn ($e) => is_a($e, InferExtension::class, true),
                 ));
 
-                $inferExtensionsClasses = array_merge([
+                $inferExtensionsClasses = array_merge($inferExtensionsClasses, [
                     ResponseMethodReturnTypeExtension::class,
                     JsonResourceExtension::class,
                     ResourceResponseMethodReturnTypeExtension::class,
                     JsonResponseMethodReturnTypeExtension::class,
                     ModelExtension::class,
-                    RuleExtension::class,
-                    FileRuleCallsInfer::class,
-                ], $inferExtensionsClasses);
-
-                $validationRuleExtensions = array_values(array_filter(
-                    $extensions,
-                    fn (mixed $e) => is_a($e, ValidationRuleExtension::class, true),
-                ));
-
-                $validationRuleExtensions = array_merge([
-                    InValidationRuleExtension::class,
-                    EnumValidationRuleExtension::class,
-                    FileValidationRuleExtension::class,
-                ], $validationRuleExtensions);
+                ]);
 
                 return array_merge(
                     [
                         new PossibleExceptionInfer,
                         new AbortHelpersExceptionInfer,
 
-                        new JsonResourceCallsTypeInfer,
+                        new PaginateMethodsReturnTypeExtension,
+
                         new JsonResourceCreationInfer,
                         new ValidatorTypeInfer,
                         new ResourceCollectionTypeInfer,
@@ -161,8 +148,7 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     ],
                     array_map(function ($class) {
                         return app($class);
-                    }, $inferExtensionsClasses),
-                    $validationRuleExtensions,
+                    }, $inferExtensionsClasses)
                 );
             });
 
@@ -178,7 +164,7 @@ class ScrambleServiceProvider extends PackageServiceProvider
 
                 return array_map(function ($class) {
                     return app($class);
-                }, $indexBuilders);
+                }, array_merge([PaginatorsCandidatesBuilder::class], $indexBuilders));
             });
 
         $this->app->bind(TypeTransformer::class, function (Application $application, array $parameters) {
@@ -208,6 +194,8 @@ class ScrambleServiceProvider extends PackageServiceProvider
                     PaginatorTypeToSchema::class,
                     LengthAwarePaginatorTypeToSchema::class,
                     ResponseTypeToSchema::class,
+                    BinaryFileResponseToSchema::class,
+                    StreamedResponseToSchema::class,
                     ResourceResponseTypeToSchema::class,
                     VoidTypeToSchema::class,
                 ], $typesToSchemaExtensions),
@@ -235,7 +223,11 @@ class ScrambleServiceProvider extends PackageServiceProvider
                 ));
 
                 $transformers->append($operationExtensions);
-            });
+            })
+            ->withDocumentTransformers([
+                AddDocumentTags::class,
+                CleanupUnusedResponseReferencesTransformer::class,
+            ]);
 
         if (Scramble::$defaultRoutesIgnored) {
             Scramble::configure()->expose(false);

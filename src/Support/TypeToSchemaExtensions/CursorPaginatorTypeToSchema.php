@@ -50,9 +50,7 @@ class CursorPaginatorTypeToSchema extends TypeToSchemaExtension
             return null;
         }
 
-        if (! ($collectingType = $this->openApiTransformer->transform($collectingClassType))) {
-            return null;
-        }
+        $collectingType = $this->openApiTransformer->transform($collectingClassType);
 
         return (new OpenApiObjectType)
             ->addProperty('data', (new ArrayType)->setItems($collectingType))
@@ -77,7 +75,7 @@ class CursorPaginatorTypeToSchema extends TypeToSchemaExtension
         }
 
         return Response::make(200)
-            ->description('Paginated set of `'.$this->openApiContext->references->schemas->uniqueName($collectingClassType->name).'`')
+            ->setDescription('Paginated set of `'.$this->openApiContext->references->schemas->uniqueName($collectingClassType->name).'`')
             ->setContent('application/json', Schema::fromType($this->openApiTransformer->transform($type)));
     }
 }

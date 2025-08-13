@@ -2,7 +2,7 @@
 
 namespace Dedoc\Scramble\Support\Generator\Types;
 
-use Dedoc\Scramble\Support\Generator\MissingExample;
+use Dedoc\Scramble\Support\Generator\MissingValue;
 use Dedoc\Scramble\Support\Generator\WithAttributes;
 use Dedoc\Scramble\Support\Generator\WithExtensions;
 
@@ -21,13 +21,13 @@ abstract class Type
 
     public string $contentEncoding = '';
 
-    /** @var array|scalar|null|MissingExample */
+    /** @var array|scalar|null|MissingValue */
     public $example;
 
-    /** @var array|scalar|null|MissingExample */
+    /** @var array|scalar|null|MissingValue */
     public $default;
 
-    /** @var array<array|scalar|null|MissingExample> */
+    /** @var array<array|scalar|null|MissingValue> */
     public $examples = [];
 
     public array $enum = [];
@@ -37,39 +37,54 @@ abstract class Type
     public function __construct(string $type)
     {
         $this->type = $type;
-        $this->example = new MissingExample;
-        $this->default = new MissingExample;
+        $this->example = new MissingValue;
+        $this->default = new MissingValue;
     }
 
-    public function nullable(bool $nullable)
+    /**
+     * @return $this
+     */
+    public function nullable(bool $nullable): self
     {
         $this->nullable = $nullable;
 
         return $this;
     }
 
-    public function format(string $format)
+    /**
+     * @return $this
+     */
+    public function format(string $format): self
     {
         $this->format = $format;
 
         return $this;
     }
 
-    public function contentMediaType(string $mediaType)
+    /**
+     * @return $this
+     */
+    public function contentMediaType(string $mediaType): self
     {
         $this->contentMediaType = $mediaType;
 
         return $this;
     }
 
-    public function contentEncoding(string $encoding)
+    /**
+     * @return $this
+     */
+    public function contentEncoding(string $encoding): self
     {
         $this->contentEncoding = $encoding;
 
         return $this;
     }
 
-    public function addProperties(Type $fromType)
+    /**
+     * @return $this
+     */
+    public function addProperties(Type $fromType): self
     {
         $this->attributes = $fromType->attributes;
 
@@ -93,11 +108,11 @@ abstract class Type
                 'description' => $this->description,
                 'enum' => count($this->enum) ? $this->enum : null,
             ]),
-            $this->example instanceof MissingExample ? [] : ['example' => $this->example],
-            $this->default instanceof MissingExample ? [] : ['default' => $this->default],
+            $this->example instanceof MissingValue ? [] : ['example' => $this->example],
+            $this->default instanceof MissingValue ? [] : ['default' => $this->default],
             count(
                 $examples = collect($this->examples)
-                    ->reject(fn ($example) => $example instanceof MissingExample)
+                    ->reject(fn ($example) => $example instanceof MissingValue)
                     ->values()
                     ->toArray()
             ) ? ['examples' => $examples] : [],
@@ -105,14 +120,20 @@ abstract class Type
         );
     }
 
-    public function setDescription(string $description): Type
+    /**
+     * @return $this
+     */
+    public function setDescription(string $description): self
     {
         $this->description = $description;
 
         return $this;
     }
 
-    public function enum(array $enum): Type
+    /**
+     * @return $this
+     */
+    public function enum(array $enum): self
     {
         $this->enum = $enum;
 
@@ -120,9 +141,10 @@ abstract class Type
     }
 
     /**
-     * @param  array|scalar|null|MissingExample  $example
+     * @param  array|scalar|null|MissingValue  $example
+     * @return $this
      */
-    public function example($example)
+    public function example($example): self
     {
         $this->example = $example;
 
@@ -130,9 +152,10 @@ abstract class Type
     }
 
     /**
-     * @param  array|scalar|null|MissingExample  $default
+     * @param  array|scalar|null|MissingValue  $default
+     * @return $this
      */
-    public function default($default)
+    public function default($default): self
     {
         $this->default = $default;
 
@@ -140,9 +163,10 @@ abstract class Type
     }
 
     /**
-     * @param  array<array|scalar|null|MissingExample>  $examples
+     * @param  array<array|scalar|null|MissingValue>  $examples
+     * @return $this
      */
-    public function examples(array $examples)
+    public function examples(array $examples): self
     {
         $this->examples = $examples;
 

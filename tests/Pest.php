@@ -1,6 +1,7 @@
 <?php
 
 use Dedoc\Scramble\Infer;
+use Dedoc\Scramble\Infer\DefinitionBuilders\FunctionLikeAstDefinitionBuilder;
 use Dedoc\Scramble\Infer\Scope\Index;
 use Dedoc\Scramble\Infer\Scope\NodeTypesResolver;
 use Dedoc\Scramble\Infer\Scope\Scope;
@@ -22,6 +23,12 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 
 uses(TestCase::class)->in(__DIR__);
+
+expect()->extend('toBeSameJson', function (mixed $expectedData) {
+    expect(json_encode($this->value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES))->toBe(json_encode($expectedData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    return $this;
+});
 
 function analyzeFile(
     string $code,
@@ -51,8 +58,40 @@ function analyzeFile(
         Infer\Context::getInstance()->extensionsBroker->extensions,
     ));
     $traverser->traverse(
-        FileParser::getInstance()->parseContent($code)->getStatements(),
+        $fileAst = FileParser::getInstance()->parseContent($code)->getStatements(),
     );
+
+    $classLikeNames = array_map(
+        fn (\PhpParser\Node\Stmt\ClassLike $cl) => $cl->name?->name,
+        (new \PhpParser\NodeFinder)->find(
+            $fileAst,
+            fn ($n) => $n instanceof \PhpParser\Node\Stmt\ClassLike,
+        ),
+    );
+
+    foreach ($index->classesDefinitions as $classDefinition) {
+        if (! in_array($classDefinition->name, $classLikeNames)) {
+            continue;
+        }
+        foreach ($classDefinition->methods as $name => $methodDefinition) {
+            $node = (new \PhpParser\NodeFinder)->findFirst(
+                $fileAst,
+                fn ($n) => $n instanceof \PhpParser\Node\Stmt\ClassMethod && $n->name->name === $name,
+            );
+
+            if (! $node) {
+                continue;
+            }
+
+            $classDefinition->methods[$name] = (new FunctionLikeAstDefinitionBuilder(
+                $methodDefinition->type->name,
+                $node,
+                $index,
+                new FileNameResolver(new NameContext(new Throwing)),
+                $classDefinition,
+            ))->build();
+        }
+    }
 
     // Should this be here? Index must be global?
     resolveReferences($index, new ReferenceTypeResolver($index));
@@ -81,7 +120,7 @@ function resolveReferences(Index $index, ReferenceTypeResolver $referenceResolve
             new ScopeContext(functionDefinition: $functionDefinition),
             new FileNameResolver(new NameContext(new Throwing)),
         );
-        $referenceResolver->resolveFunctionReturnReferences($fnScope, $functionDefinition->type);
+        Infer\Definition\ClassDefinition::resolveFunctionReturnReferences($fnScope, $functionDefinition->type);
     }
 
     foreach ($index->classesDefinitions as $classDefinition) {
@@ -92,7 +131,7 @@ function resolveReferences(Index $index, ReferenceTypeResolver $referenceResolve
                 new ScopeContext($classDefinition, $methodDefinition),
                 new FileNameResolver(new NameContext(new Throwing)),
             );
-            $referenceResolver->resolveFunctionReturnReferences($methodScope, $methodDefinition->type);
+            Infer\Definition\ClassDefinition::resolveFunctionReturnReferences($methodScope, $methodDefinition->type);
         }
     }
 }

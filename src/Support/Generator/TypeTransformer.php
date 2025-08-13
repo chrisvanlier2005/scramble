@@ -18,6 +18,7 @@ use Dedoc\Scramble\Support\Generator\Types\NullType;
 use Dedoc\Scramble\Support\Generator\Types\NumberType;
 use Dedoc\Scramble\Support\Generator\Types\ObjectType;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
+use Dedoc\Scramble\Support\Generator\Types\Type as OpenApiType;
 use Dedoc\Scramble\Support\Generator\Types\UnknownType;
 use Dedoc\Scramble\Support\Helpers\ExamplesExtractor;
 use Dedoc\Scramble\Support\Type\ArrayItemType_;
@@ -30,6 +31,8 @@ use Dedoc\Scramble\Support\Type\Union;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
+
+use function DeepCopy\deep_copy;
 
 /**
  * Transforms PHP type to OpenAPI schema type.
@@ -44,7 +47,7 @@ class TypeTransformer
 
     public function __construct(
         private Infer $infer,
-        private OpenApiContext $context,
+        public readonly OpenApiContext $context,
         array $typeToSchemaExtensionsClasses = [],
         array $exceptionToResponseExtensionsClasses = []
     ) {
@@ -66,7 +69,7 @@ class TypeTransformer
         return $this->context->openApi->components;
     }
 
-    public function transform(Type $type)
+    public function transform(Type $type): OpenApiType
     {
         $openApiType = new UnknownType;
 
@@ -103,7 +106,7 @@ class TypeTransformer
                     }
 
                     return [
-                        $item->key => $this->transform($item),
+                        (string) $item->key => $this->transform($item),
                     ];
                 });
 
@@ -126,9 +129,9 @@ class TypeTransformer
 
             if ($docNode = $type->getAttribute('docNode')) {
                 /** @var PhpDocNode $docNode */
-                $varNode = $docNode->getVarTagValues()[0] ?? null;
+                $varNode = array_values($docNode->getVarTagValues())[0] ?? null;
 
-                $openApiType = $varNode && $varNode->type
+                $openApiType = $varNode
                     ? $this->transform(PhpDocTypeHelper::toType($varNode->type))
                     : $openApiType;
 
@@ -184,11 +187,11 @@ class TypeTransformer
                 $openApiType = count($uniqueItems) === 1 ? $uniqueItems[0] : (new AnyOf)->setItems($uniqueItems);
             }
         } elseif ($type instanceof LiteralStringType) {
-            $openApiType = (new StringType)->example($type->value);
+            $openApiType = (new StringType)->enum([$type->value]);
         } elseif ($type instanceof LiteralIntegerType) {
-            $openApiType = (new IntegerType)->example($type->value);
+            $openApiType = (new IntegerType)->enum([$type->value]);
         } elseif ($type instanceof LiteralFloatType) {
-            $openApiType = (new NumberType)->example($type->value);
+            $openApiType = (new NumberType)->enum([$type->value]);
         } elseif ($type instanceof \Dedoc\Scramble\Support\Type\StringType) {
             $openApiType = new StringType;
         } elseif ($type instanceof \Dedoc\Scramble\Support\Type\FloatType) {
@@ -208,10 +211,10 @@ class TypeTransformer
                 $openApiType = new ObjectType;
             }
         } elseif ($type instanceof \Dedoc\Scramble\Support\Type\IntersectionType) {
-            $openApiType = (new AllOf)->setItems(array_filter(array_map(
+            $openApiType = (new AllOf)->setItems(array_map(
                 fn ($t) => $this->transform($t),
                 $type->types,
-            )));
+            ));
         }
 
         if ($typeHandledByExtension = $this->handleUsingExtensions($type)) {
@@ -276,7 +279,7 @@ class TypeTransformer
         return $reference ?: $handledType;
     }
 
-    public function toResponse(Type $type)
+    public function toResponse(Type $type): Response|Reference|null
     {
         // In case of union type being returned and all of its types resulting in the same response, we want to make
         // sure to take only unique types to avoid having the same types in the response.
@@ -293,7 +296,7 @@ class TypeTransformer
             $response = Response::make(200)
                 ->setContent(
                     'application/json',
-                    Schema::fromType($this->transform($type))
+                    Schema::fromType($this->transform($type)),
                 );
         }
 
@@ -313,7 +316,13 @@ class TypeTransformer
 
                 $typeResponse = $this->toResponse($type);
 
-                $response->setContent('application/json', $typeResponse->getContent('application/json'));
+                if ($typeResponse instanceof Reference) {
+                    $typeResponse = deep_copy($typeResponse->resolve());
+                }
+
+                if ($typeResponse instanceof Response) {
+                    $response->setContent('application/json', $typeResponse->getContent('application/json'));
+                }
             }
         }
 

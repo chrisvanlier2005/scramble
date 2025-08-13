@@ -38,8 +38,8 @@ it('transforms simple types', function ($type, $openApiArrayed) {
 })->with([
     [new IntegerType, ['type' => 'integer']],
     [new StringType, ['type' => 'string']],
-    [new LiteralStringType('wow'), ['type' => 'string', 'example' => 'wow']],
-    [new LiteralFloatType(157.50), ['type' => 'number', 'example' => 157.5]],
+    [new LiteralStringType('wow'), ['type' => 'string', 'enum' => ['wow']]],
+    [new LiteralFloatType(157.50), ['type' => 'number', 'enum' => [157.5]]],
     [new BooleanType, ['type' => 'boolean']],
     [new MixedType, (object) []],
     [new ArrayType(value: new StringType), ['type' => 'array', 'items' => ['type' => 'string']]],
@@ -104,6 +104,47 @@ it('gets enum with values type and description', function () {
 | `draft` <br/> Drafts are the posts that are not visible by visitors. |
 | `published` <br/> Published posts are visible to visitors. |
 | `archived` <br/> Archived posts are not visible to visitors. |
+EOF);
+});
+
+it('gets enum with its description and cases description (#922)', function () {
+    config()->set('scramble.enum_cases_description_strategy', 'description');
+
+    $transformer = new TypeTransformer($infer = app(Infer::class), $this->context, [EnumToSchema::class]);
+    $extension = new EnumToSchema($infer, $transformer, $this->context->openApi->components);
+
+    $type = new ObjectType(StatusFour::class);
+
+    expect($extension->toSchema($type)->toArray()['description'])
+        ->toBe(<<<'EOF'
+Description for StatusFour.
+| |
+|---|
+| `draft` <br/> Drafts are the posts that are not visible by visitors. |
+EOF);
+});
+
+it('preserves enum cases description but overrides the enum schema description when used in object (#922)', function () {
+    config()->set('scramble.enum_cases_description_strategy', 'description');
+
+    $transformer = new TypeTransformer($infer = app(Infer::class), $this->context, [EnumToSchema::class]);
+
+    $type = getStatementType(<<<'EOF'
+[
+    /**
+     * Override for StatusFour.
+     * @var StatusFour
+     */
+    'a' => unknown(),
+]
+EOF);
+
+    expect($transformer->transform($type)->toArray()['properties']['a']['description'])
+        ->toBe(<<<'EOF'
+Override for StatusFour.
+| |
+|---|
+| `draft` <br/> Drafts are the posts that are not visible by visitors. |
 EOF);
 });
 
@@ -449,4 +490,15 @@ enum StatusThree: string
      * Archived posts are not visible to visitors.
      */
     case ARCHIVED = 'archived';
+}
+
+/**
+ * Description for StatusFour.
+ */
+enum StatusFour: string
+{
+    /**
+     * Drafts are the posts that are not visible by visitors.
+     */
+    case DRAFT = 'draft';
 }

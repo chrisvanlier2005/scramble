@@ -5,6 +5,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Route as RouteFacade;
+use Illuminate\Validation\Rule;
 
 it('doesnt add body when empty', function () {
     $openApiDocument = generateForRoute(function () {
@@ -233,6 +234,33 @@ enum RequestBodyExtensionTest__Status_Params_Extraction: string
     case Diamonds = 'diamonds';
     case Hearts = 'hearts';
     case Spades = 'spades';
+}
+
+it('doesnt create a schema for enum if it was overridden in rules', function () {
+    $openApiDocument = generateForRoute(function () {
+        return RouteFacade::post('api/test', [RequestBodyExtensionTest__doesnt_create_the_enum_schema::class, 'index']);
+    });
+
+    expect($properties = $openApiDocument['paths']['/test']['post']['requestBody']['content']['application/json']['schema']['properties'])
+        ->toHaveLength(1)
+        ->and($properties['status'])
+        ->toBe([
+            'type' => 'string',
+            'enum' => ['clubs'],
+        ])
+        ->and($openApiDocument['components']['schemas'] ?? [])
+        ->not->toHaveKey('RequestBodyExtensionTest__Status_Params_Extraction');
+});
+class RequestBodyExtensionTest__doesnt_create_the_enum_schema
+{
+    public function index(Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'status' => Rule::in(['clubs']),
+        ]);
+
+        $request->enum('status', RequestBodyExtensionTest__Status_Params_Extraction::class);
+    }
 }
 
 it('extracts parameters, their defaults, and descriptions from calling request parameters retrieving methods with query', function () {
@@ -554,5 +582,108 @@ class Validation_DescriptionSchemaNamesTest_Controller
          * Wow.
          */
         $request->validate(['foo' => 'integer']);
+    }
+}
+
+it('documents deep query parameters according to how they can be read by laravel api', function () {
+    $document = generateForRoute(fn () => RouteFacade::get('test', RequestBodyExtensionTest_DeepQueryParametersController::class));
+
+    expect($parameters = $document['paths']['/test']['get']['parameters'])
+        ->toHaveCount(1)
+        ->and($parameters[0])
+        ->toBe([
+            'name' => 'filter[accountable]',
+            'in' => 'query',
+            'schema' => [
+                'type' => 'integer',
+            ],
+        ]);
+});
+class RequestBodyExtensionTest_DeepQueryParametersController
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate([
+            'filter.accountable' => 'integer',
+        ]);
+    }
+}
+
+it('documents deep query parameters with container according to how they can be read by laravel api', function () {
+    $document = generateForRoute(fn () => RouteFacade::get('test', RequestBodyExtensionTest_DeepQueryParametersWithContainerController::class));
+
+    expect($parameters = $document['paths']['/test']['get']['parameters'])
+        ->toHaveCount(1)
+        ->and($parameters[0])
+        ->toBe([
+            'name' => 'filter[accountable]',
+            'in' => 'query',
+            'schema' => [
+                'type' => 'integer',
+            ],
+        ]);
+});
+class RequestBodyExtensionTest_DeepQueryParametersWithContainerController
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate([
+            'filter' => 'array',
+            'filter.accountable' => 'integer',
+        ]);
+    }
+}
+
+it('documents array query parameters as arrays of some type', function () {
+    $document = generateForRoute(fn () => RouteFacade::get('test', RequestBodyExtensionTest_ArrayQueryParametersController::class));
+
+    expect($parameters = $document['paths']['/test']['get']['parameters'])
+        ->toHaveCount(1)
+        ->and($parameters[0])
+        ->toBe([
+            'name' => 'tags[]',
+            'in' => 'query',
+            'schema' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'string',
+                ],
+            ],
+        ]);
+});
+class RequestBodyExtensionTest_ArrayQueryParametersController
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate([
+            'tags' => 'array',
+        ]);
+    }
+}
+
+it('documents array query parameters as arrays of specific type', function () {
+    $document = generateForRoute(fn () => RouteFacade::get('test', RequestBodyExtensionTest_ArraySpecificQueryParametersController::class));
+
+    expect($parameters = $document['paths']['/test']['get']['parameters'])
+        ->toHaveCount(1)
+        ->and($parameters[0])
+        ->toBe([
+            'name' => 'tags[]',
+            'in' => 'query',
+            'schema' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'integer',
+                ],
+            ],
+        ]);
+});
+class RequestBodyExtensionTest_ArraySpecificQueryParametersController
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate([
+            'tags.*' => 'integer',
+        ]);
     }
 }

@@ -14,19 +14,43 @@ interface Type
 
     public function getAttribute(string $key);
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function attributes(): array;
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return $this
+     */
+    public function mergeAttributes(array $attributes): static;
+
     public function isInstanceOf(string $className);
 
     public function accepts(Type $otherType): bool;
 
     public function acceptedBy(Type $otherType): bool;
 
+    /**
+     * @return string[]
+     */
     public function nodes(): array;
 
     public function getPropertyType(string $propertyName, Scope $scope): Type;
 
     public function getMethodDefinition(string $methodName, Scope $scope = new GlobalScope): ?FunctionLikeDefinition;
 
+    /** @return $this */
+    public function setOriginal(?Type $original): self;
+
+    public function getOriginal(): ?Type;
+
+    /**
+     * @return bool
+     */
     public function isSame(self $type);
 
     public function toString(): string;
+
+    public function clone(): self;
 }

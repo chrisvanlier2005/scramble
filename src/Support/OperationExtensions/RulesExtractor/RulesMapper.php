@@ -113,6 +113,13 @@ class RulesMapper
         return $type->nullable(true);
     }
 
+    public function present(Type $type): Type
+    {
+        $type->setAttribute('required', true);
+
+        return $type;
+    }
+
     public function required(Type $type)
     {
         $type->setAttribute('required', true);
@@ -151,6 +158,20 @@ class RulesMapper
         $type = $this->min($type, $params);
 
         return $this->max($type, $params);
+    }
+
+    /**
+     * @param  array<mixed>  $params
+     */
+    public function between(Type $type, array $params): Type
+    {
+        if (count($params) !== 2) {
+            return $type;
+        }
+
+        $type = $this->min($type, [$params[0]]);
+
+        return $this->max($type, [$params[1]]);
     }
 
     public function in(Type $type, $params)

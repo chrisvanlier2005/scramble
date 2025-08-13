@@ -2,55 +2,71 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\RulesExtractor;
 
+use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
+use Dedoc\Scramble\Support\OperationExtensions\ParameterExtractor\RulesDocumentationRetriever;
+use Dedoc\Scramble\Support\OperationExtensions\ParameterExtractor\RulesNodes;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use PhpParser\Node;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
 
+/**
+ * @internal
+ */
 class RulesToParameters
 {
-    /** @var array<string, PhpDocNode> */
-    private array $nodeDocs;
-
     private bool $mergeDotNotatedKeys = true;
 
+    /** @var array<string, PhpDocNode> */
+    private array $rulesDocs;
+
+    /**
+     * @param  array<string, RuleSet>  $rules
+     * @param  Node[]|RulesDocumentationRetriever  $validationNodesResults
+     */
     public function __construct(
         private array $rules,
-        array $validationNodesResults,
+        array|RulesDocumentationRetriever $validationNodesResults,
         private TypeTransformer $openApiTransformer,
         private string $in = 'query',
     ) {
-        $this->nodeDocs = $this->extractNodeDocs($validationNodesResults);
+        // This is for backward compatibility
+        $this->rulesDocs = is_array($validationNodesResults)
+            ? RulesNodes::makeFromStatements($validationNodesResults)->getDocNodes()
+            : $validationNodesResults->getDocNodes();
     }
 
-    public function mergeDotNotatedKeys(bool $mergeDotNotatedKeys = true)
+    public function mergeDotNotatedKeys(bool $mergeDotNotatedKeys = true): self
     {
         $this->mergeDotNotatedKeys = $mergeDotNotatedKeys;
 
         return $this;
     }
 
-    public function handle()
+    /**
+     * @return Parameter[]
+     */
+    public function handle(): array
     {
         return collect($this->rules)
             ->pipe($this->handleConfirmed(...))
-            ->map(fn ($rules, $name) => (new RulesToParameter($name, $rules, $this->nodeDocs[$name] ?? null, $this->openApiTransformer, $this->in))->generate())
+            ->map(fn ($rules, $name) => (new RulesToParameter($name, $rules, $this->rulesDocs[$name] ?? null, $this->openApiTransformer, $this->in))->generate())
             ->filter()
-            ->pipe(fn ($c) => $this->mergeDotNotatedKeys ? collect((new DeepParametersMerger($c))->handle()) : $c)
             ->values()
+            ->pipe(fn ($c) => $this->mergeDotNotatedKeys ? collect((new DeepParametersMerger($c))->handle()) : $c)
             ->all();
     }
 
-    private function handleConfirmed(Collection $rules)
+    /**
+     * @param  Collection<string, RuleSet>  $rules
+     * @return Collection<string, RuleSet>
+     */
+    private function handleConfirmed(Collection $rules): Collection
     {
         $confirmedParamNameRules = $rules
             ->map(fn ($rules, $name) => [$name, Arr::wrap(is_string($rules) ? explode('|', $rules) : $rules)])
-            ->filter(fn ($nameRules) => in_array('confirmed', $nameRules[1]));
-
-        if (! $confirmedParamNameRules) {
-            return $rules;
-        }
+            ->filter(fn ($nameRules) => in_array('confirmed', $nameRules[1], true));
 
         foreach ($confirmedParamNameRules as $confirmedParamNameRule) {
             $rules->offsetSet(
@@ -60,14 +76,5 @@ class RulesToParameters
         }
 
         return $rules;
-    }
-
-    private function extractNodeDocs($validationNodesResults)
-    {
-        return collect($validationNodesResults)
-            ->mapWithKeys(fn (Node\Expr\ArrayItem $item) => [
-                $item->key->value => $item->getAttribute('parsedPhpDoc'),
-            ])
-            ->toArray();
     }
 }

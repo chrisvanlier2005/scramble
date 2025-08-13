@@ -2,18 +2,20 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\RulesExtractor;
 
+use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
-use Dedoc\Scramble\Support\Type\KeyedArrayType;
+use Dedoc\Scramble\Support\OperationExtensions\ParameterExtractor\RulesDocumentationRetriever;
+use PhpParser\Node;
 
 trait GeneratesParametersFromRules
 {
-    private function makeParameters($node, $rules, TypeTransformer $typeTransformer, string $in = 'query')
+    /**
+     * @param  array<string, RuleSet>  $rules
+     * @param  Node[]|RulesDocumentationRetriever  $rulesDocsRetriever
+     * @return Parameter[]
+     */
+    private function makeParameters($rules, TypeTransformer $typeTransformer, array|RulesDocumentationRetriever $rulesDocsRetriever = [], string $in = 'query'): array
     {
-        return (new RulesToParameters($rules, $node, $typeTransformer, $in))->mergeDotNotatedKeys(false)->handle();
-    }
-
-    private function makeParametersFromStaticRules($node, KeyedArrayType $rules, TypeTransformer $typeTransformer, string $in = 'query')
-    {
-        return (new StaticRulesToParameters($rules, $node, $typeTransformer, $in))->mergeDotNotatedKeys(false)->handle();
+        return (new RulesToParameters($rules, $rulesDocsRetriever, $typeTransformer, $in))->mergeDotNotatedKeys(false)->handle();
     }
 }

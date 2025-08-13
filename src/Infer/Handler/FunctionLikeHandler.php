@@ -4,7 +4,6 @@ namespace Dedoc\Scramble\Infer\Handler;
 
 use Dedoc\Scramble\Infer\Definition\FunctionLikeDefinition;
 use Dedoc\Scramble\Infer\Scope\Scope;
-use Dedoc\Scramble\Support\Type\BooleanType;
 use Dedoc\Scramble\Support\Type\FloatType;
 use Dedoc\Scramble\Support\Type\FunctionType;
 use Dedoc\Scramble\Support\Type\IntegerType;
@@ -48,7 +47,6 @@ class FunctionLikeHandler implements CreatesScope
         // set function return types not in leave function, but in the return handlers.
         $scope->context->setFunctionDefinition($fnDefinition = new FunctionLikeDefinition(
             type: $fnType = new FunctionType($node->name->name ?? 'anonymous'),
-            sideEffects: [],
             definingClassName: $scope->context->classDefinition?->name,
             isStatic: $node instanceof Node\Stmt\ClassMethod ? $node->isStatic() : false,
         ));
@@ -140,7 +138,6 @@ class FunctionLikeHandler implements CreatesScope
                 || in_array(get_class(TypeHelper::createTypeFromTypeNode($returnTypeAnnotation)), [
                     IntegerType::class,
                     FloatType::class,
-                    BooleanType::class,
                 ])
             )
         ) {
@@ -182,7 +179,9 @@ class FunctionLikeHandler implements CreatesScope
 
         $argumentsAssignedToProperties = [];
 
-        $callToParentConstruct = $scope->classDefinition()->parentFqn ? array_filter(
+        $parentFqn = $scope->classDefinition()->parentFqn;
+
+        $callToParentConstruct = $parentFqn ? array_filter(
             $node->getStmts() ?: [],
             fn (Node\Stmt $s) => $s instanceof Node\Stmt\Expression
                 && $s->expr instanceof Node\Expr\StaticCall
@@ -194,7 +193,8 @@ class FunctionLikeHandler implements CreatesScope
 
         if (
             $callToParentConstruct
-            && ($parentDefinition = $scope->index->getClassDefinition($scope->classDefinition()->parentFqn))
+            && $parentFqn
+            && ($parentDefinition = $scope->index->getClass($parentFqn))
             && ($parentConstructorDefinition = $parentDefinition->getMethodDefinition('__construct'))
         ) {
             $parentConstructorArguments = $parentConstructorDefinition->type->arguments;

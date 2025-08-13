@@ -10,6 +10,21 @@ abstract class AbstractType implements Type
 {
     use TypeAttributes;
 
+    public ?Type $original = null;
+
+    /** @return $this */
+    public function setOriginal(?Type $original): self
+    {
+        $this->original = $original;
+
+        return $this;
+    }
+
+    public function getOriginal(): ?Type
+    {
+        return $this->original;
+    }
+
     public function nodes(): array
     {
         return [];
@@ -40,5 +55,42 @@ abstract class AbstractType implements Type
     public function getMethodDefinition(string $methodName, Scope $scope = new GlobalScope): ?FunctionLikeDefinition
     {
         return null;
+    }
+
+    /**
+     * Creates a deep clone of the type.
+     *
+     * Note that template types are not cloned but rather kept as is due to templates replacement in the generics
+     * is made via reference comparison, not just via names. For now.
+     */
+    public function clone(): self
+    {
+        $cloned = clone $this;
+
+        foreach ($cloned->nodes() as $nodeName) {
+            /** @var Type|Type[] $nodeValue */
+            $nodeValue = $cloned->$nodeName;
+
+            if ($nodeValue instanceof TemplateType) {
+                continue;
+            }
+
+            if (! is_array($nodeValue)) {
+                $cloned->$nodeName = $nodeValue->clone();
+
+                continue;
+            }
+
+            /** @var Type $nodeItemValue */
+            foreach ($nodeValue as $i => $nodeItemValue) {
+                if ($nodeItemValue instanceof TemplateType) {
+                    continue;
+                }
+
+                $cloned->$nodeName[$i] = $nodeItemValue->clone();
+            }
+        }
+
+        return $cloned;
     }
 }

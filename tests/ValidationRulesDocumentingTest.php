@@ -35,6 +35,68 @@ function validationRulesToDocumentationWithDeep($rulesToParameters)
 }
 
 // @todo: move rules from here to Generator/Request/ValidationRulesDocumentation test
+it('supports present rule', function () {
+    $rules = [
+        'password' => ['present'],
+    ];
+
+    $params = ($this->buildRulesToParameters)($rules)->handle();
+
+    expect($params = collect($params)->map->toArray()->all())
+        ->toHaveCount(1)
+        ->and($params[0])
+        ->toMatchArray([
+            'name' => 'password',
+            'in' => 'query',
+            'required' => true,
+            'schema' => ['type' => 'string'],
+        ]);
+});
+
+it('supports present rule on array', function () {
+    $rules = [
+        'users' => ['present', 'array'],
+        'users.*' => ['string'],
+    ];
+
+    $params = validationRulesToDocumentationWithDeep(($this->buildRulesToParameters)($rules));
+
+    expect($params = collect($params)->map->toArray()->all())
+        ->toHaveCount(1)
+        ->and($params[0])
+        ->toMatchArray([
+            'name' => 'users',
+            'in' => 'query',
+            'schema' => [
+                'type' => 'array',
+                'items' => ['type' => 'string'],
+            ],
+            'required' => true,
+        ]);
+});
+
+it('supports present rule in array', function () {
+    $rules = [
+        'user.password' => ['present'],
+    ];
+
+    $params = validationRulesToDocumentationWithDeep(($this->buildRulesToParameters)($rules));
+
+    expect($params = collect($params)->map->toArray()->all())
+        ->toHaveCount(1)
+        ->and($params[0])
+        ->toMatchArray([
+            'name' => 'user',
+            'in' => 'query',
+            'schema' => [
+                'type' => 'object',
+                'properties' => [
+                    'password' => ['type' => 'string'],
+                ],
+                'required' => ['password'],
+            ],
+        ]);
+});
 
 it('supports confirmed rule', function () {
     $rules = [
@@ -289,6 +351,17 @@ it('extract rules from object like rules with explicit array', function () {
     assertMatchesSnapshot(collect($params)->map->toArray()->all());
 });
 
+it('supports between rule', function () {
+    $rules = [
+        'foo' => 'between:36,42',
+    ];
+
+    $type = ($this->buildRulesToParameters)($rules)->handle()[0]->schema->type;
+
+    expect($type->min)->toBe(36.0)
+        ->and($type->max)->toBe(42.0);
+});
+
 it('supports exists rule', function () {
     $rules = [
         'email' => 'required|email|exists:users,email',
@@ -502,6 +575,29 @@ it('documents date_format rule with Y-m-d format', function () {
         ->toHaveProperty('format', 'date');
 });
 
+it('supports prohibited if rule evaluation', function () {
+    $openApiDocument = generateForRoute(fn () => RouteFacade::get('api/test', ProhibitedIf_ValidationRulesDocumentingTest::class));
+
+    expect($openApiDocument['paths']['/test']['get']['parameters'][0])->toBe([
+        'name' => 'foo',
+        'in' => 'query',
+        'schema' => ['type' => 'string'],
+    ]);
+});
+class ProhibitedIf_ValidationRulesDocumentingTest
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate([
+            'foo' => [
+                Rule::prohibitedIf(
+                    fn (): bool => ! $this->user()->can('create', Some::class)
+                ),
+            ],
+        ]);
+    }
+}
+
 it('extracts rules from request->validate call', function () {
     RouteFacade::get('api/test', [ValidationRulesDocumenting_Test::class, 'index']);
 
@@ -528,6 +624,23 @@ it('extracts rules docs from form request', function () {
 
     assertMatchesSnapshot($openApiDocument['paths']['/test']['get']['parameters']);
 });
+
+it('extracts rules docs when using consts in form request', function ($action) {
+    $openApiDocument = generateForRoute(fn () => RouteFacade::get('api/test', $action));
+
+    expect($openApiDocument['paths']['/test']['get']['parameters'][0])->toBe([
+        'name' => 'foo',
+        'in' => 'query',
+        'required' => true,
+        'description' => 'A foo prop.',
+        'schema' => ['type' => 'string'],
+        'example' => 'wow',
+    ]);
+})->with([
+    [[FormRequestsValidationRulesWithConstsDocs_Test::class, 'index']],
+    [[FormRequestsValidationRulesWithConstsDocs_Test::class, '_static']],
+    [[FormRequestsValidationRulesWithConstsDocs_Test::class, '_self']],
+]);
 
 it('extracts rules from Validator::make facade call', function () {
     $openApiDocument = generateForRoute(function () {
@@ -628,9 +741,50 @@ class ValidationRulesWithDocsAndFormRequest_Test
     }
 }
 
+class FormRequestsValidationRulesWithConstsDocs_Test
+{
+    const TEST = 'foo';
+
+    public function index(Request $request)
+    {
+        $request->validate([
+            /**
+             * A foo prop.
+             *
+             * @example wow
+             */
+            FormRequestsValidationRulesWithConstsDocs_Test::TEST => ['required', 'string'],
+        ]);
+    }
+
+    public function _static(Request $request)
+    {
+        $request->validate([
+            /**
+             * A foo prop.
+             *
+             * @example wow
+             */
+            static::TEST => ['required', 'string'],
+        ]);
+    }
+
+    public function _self(Request $request)
+    {
+        $request->validate([
+            /**
+             * A foo prop.
+             *
+             * @example wow
+             */
+            self::TEST => ['required', 'string'],
+        ]);
+    }
+}
+
 class ValidationRulesAndFormRequestAtTheSameTime_TestFormRequest extends \Illuminate\Foundation\Http\FormRequest
 {
-    public function authorize()
+    public function authorize(): bool
     {
         return true;
     }
@@ -645,7 +799,7 @@ class ValidationRulesAndFormRequestAtTheSameTime_TestFormRequest extends \Illumi
 
 class FormRequestWithDocs_TestFormRequest extends \Illuminate\Foundation\Http\FormRequest
 {
-    public function authorize()
+    public function authorize(): bool
     {
         return true;
     }
@@ -685,4 +839,157 @@ class ControllerWithoutSecurity
      * @unauthenticated
      */
     public function index() {}
+}
+
+it('extracts manual documentation for rules from request->validate call when rules are defined in a different method', function () {
+    $openApiDocument = generateForRoute(fn () => RouteFacade::get('api/test', ValidateCallDifferentMethodsRules_ValidationRulesDocumentingTest::class));
+
+    expect($openApiDocument['paths']['/test']['get']['parameters'][0])
+        ->toBe([
+            'name' => 'foo',
+            'in' => 'query',
+            'required' => true,
+            'description' => 'Nice parameter',
+            'schema' => ['type' => 'string'],
+        ]);
+});
+class ValidateCallDifferentMethodsRules_ValidationRulesDocumentingTest
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate((new ValidateCallDifferentMethodsRules_ValidationRulesDocumentingTest)->getRules());
+    }
+
+    public function getRules()
+    {
+        return [
+            // Nice parameter
+            'foo' => ['required', 'string'],
+        ];
+    }
+}
+
+it('extracts manual documentation for merged rules from request->validate call when rules are defined in a different method', function () {
+    $openApiDocument = generateForRoute(fn () => RouteFacade::get('api/test', ValidateCallMergedRules_ValidationRulesDocumentingTest::class));
+
+    expect($openApiDocument['paths']['/test']['get']['parameters'])
+        ->toBe([
+            [
+                'name' => 'foo',
+                'in' => 'query',
+                'required' => true,
+                'description' => 'Nice parameter',
+                'schema' => ['type' => 'string'],
+            ],
+            [
+                'name' => 'bar',
+                'in' => 'query',
+                'description' => 'Great parameter',
+                'schema' => ['type' => 'integer'],
+            ],
+        ]);
+});
+class ValidateCallMergedRules_ValidationRulesDocumentingTest
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate(array_merge(
+            (new ValidateCallMergedRules_ValidationRulesDocumentingTest)->getFooRules(),
+            (new ValidateCallMergedRules_ValidationRulesDocumentingTest)->getBarRules(),
+        ));
+    }
+
+    public function getFooRules()
+    {
+        return [
+            // Nice parameter
+            'foo' => ['required', 'string'],
+        ];
+    }
+
+    public function getBarRules()
+    {
+        return [
+            // Great parameter
+            'bar' => ['integer'],
+        ];
+    }
+}
+
+it('extracts manual documentation for rules in form request', function () {
+    $openApiDocument = generateForRoute(fn () => RouteFacade::get('api/test', FormRequestRulesController_ValidationRulesDocumentingTest::class));
+
+    expect($openApiDocument['paths']['/test']['get']['parameters'])
+        ->toBe([
+            [
+                'name' => 'foo',
+                'in' => 'query',
+                'required' => true,
+                'description' => 'Nice parameter',
+                'schema' => ['type' => 'string'],
+            ],
+            [
+                'name' => 'bar',
+                'in' => 'query',
+                'description' => 'Great parameter',
+                'schema' => ['type' => 'integer'],
+            ],
+        ]);
+});
+class FormRequestRulesController_ValidationRulesDocumentingTest
+{
+    public function __invoke(FormRequestRulesRequest_ValidationRulesDocumentingTest $request) {}
+}
+class FormRequestRulesRequest_ValidationRulesDocumentingTest
+{
+    public function rules()
+    {
+        $rules = [
+            // Nice parameter
+            'foo' => ['required', 'string'],
+        ];
+
+        return array_merge($rules, $this->getBarRules());
+    }
+
+    public function getBarRules()
+    {
+        return [
+            // Great parameter
+            'bar' => ['integer'],
+        ];
+    }
+}
+
+it('extracts rules when the action is used by few routes', function () {
+    $routes = [
+        RouteFacade::get('api/a', ValidateCallSameActionDifferentRoutes_ValidationRulesDocumentingTest::class),
+        RouteFacade::get('api/b', ValidateCallSameActionDifferentRoutes_ValidationRulesDocumentingTest::class),
+    ];
+
+    Scramble::routes(fn (Route $r) => in_array($r, $routes, strict: true));
+    $openApiDocument = app()->make(\Dedoc\Scramble\Generator::class)();
+
+    $expectedParameters = [[
+        'name' => 'foo',
+        'in' => 'query',
+        'required' => true,
+        'description' => 'Nice parameter',
+        'schema' => ['type' => 'string'],
+    ]];
+
+    expect($openApiDocument['paths']['/a']['get']['parameters'])
+        ->toBe($expectedParameters)
+        ->and($openApiDocument['paths']['/b']['get']['parameters'])
+        ->toBe($expectedParameters);
+});
+class ValidateCallSameActionDifferentRoutes_ValidationRulesDocumentingTest
+{
+    public function __invoke(Request $request)
+    {
+        $request->validate([
+            // Nice parameter
+            'foo' => ['required', 'string'],
+        ]);
+    }
 }

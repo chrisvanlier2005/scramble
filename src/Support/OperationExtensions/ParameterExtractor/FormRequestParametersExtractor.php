@@ -2,19 +2,16 @@
 
 namespace Dedoc\Scramble\Support\OperationExtensions\ParameterExtractor;
 
-use Dedoc\Scramble\Attributes\SchemaName;
 use Dedoc\Scramble\Infer;
-use Dedoc\Scramble\Infer\Scope\GlobalScope;
 use Dedoc\Scramble\Support\Generator\TypeTransformer;
 use Dedoc\Scramble\Support\OperationExtensions\RequestBodyExtension;
+use Dedoc\Scramble\Support\OperationExtensions\RulesEvaluator\ComposedFormRequestRulesEvaluator;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\GeneratesParametersFromRules;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\ParametersExtractionResult;
 use Dedoc\Scramble\Support\RouteInfo;
 use Dedoc\Scramble\Support\SchemaClassDocReflector;
-use Dedoc\Scramble\Support\Type\KeyedArrayType;
-use Illuminate\Support\Arr;
-use PhpParser\Node;
-use PhpParser\NodeFinder;
+use Dedoc\Scramble\Support\Type\ObjectType;
+use Dedoc\Scramble\Support\Type\Reference\MethodCallReferenceType;
 use PhpParser\PrettyPrinter;
 use ReflectionClass;
 use ReflectionNamedType;
@@ -90,23 +87,14 @@ class FormRequestParametersExtractor implements ParameterExtractor
             ? null
             : $phpDocReflector->getSchemaName($requestClassName);
 
-        $schemaNameAttribute = ($classReflector->getReflection()
-            ->getAttributes(SchemaName::class)[0] ?? null)?->newInstance();
-
-        $schemaName = $schemaNameAttribute
-            ? $schemaNameAttribute->name
-            : $schemaName;
-
         return new ParametersExtractionResult(
-            parameters: $this->makeParametersFromStaticRules(
-                node: (new NodeFinder)->find(
-                    Arr::wrap($classReflector->getMethod('rules')->getAstNode()->stmts),
-                    fn (Node $node) => $node instanceof Node\Expr\ArrayItem
-                        && $node->key instanceof Node\Scalar\String_
-                        && $node->getAttribute('parsedPhpDoc'),
-                ),
-                rules: $this->rules($requestClassName, $routeInfo),
+            parameters: $this->makeParameters(
+                rules: (new ComposedFormRequestRulesEvaluator($this->printer, $classReflector, $routeInfo->route))->handle(),
                 typeTransformer: $this->openApiTransformer,
+                rulesDocsRetriever: new TypeBasedRulesDocumentationRetriever(
+                    $routeInfo->getScope(),
+                    new MethodCallReferenceType(new ObjectType($requestClassName), 'rules', []),
+                ),
                 in: in_array(mb_strtolower($routeInfo->route->methods()[0]), RequestBodyExtension::HTTP_METHODS_WITHOUT_REQUEST_BODY)
                     ? 'query'
                     : 'body',
@@ -114,21 +102,5 @@ class FormRequestParametersExtractor implements ParameterExtractor
             schemaName: $schemaName,
             description: $phpDocReflector->getDescription(),
         );
-    }
-
-    protected function rules(string $requestClassName, RouteInfo $routeInfo): KeyedArrayType
-    {
-        $infer = new Infer($index = new Infer\Scope\Index);
-        $inferred = $infer->analyzeClass($requestClassName);
-
-        $scope = new GlobalScope;
-        $scope->index = $index;
-
-        $methodDefinition = $inferred->getMethodDefinition(
-            'rules',
-            $scope,
-        );
-
-        return $methodDefinition->type->returnType;
     }
 }
